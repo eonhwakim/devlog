@@ -1,14 +1,27 @@
 {
-  "name": "@devlog/mcp-server",
+  "name": "devlog-mcp",
   "version": "0.1.0",
-  "description": "GitHub activity digest MCP server — powered by Claude",
+  "description": "GitHub activity digest MCP server — weekly summary, annual report, collaboration score",
   "type": "module",
   "bin": {
     "devlog-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "mcp",
+    "github",
+    "claude",
+    "developer-tools",
+    "productivity",
+    "ai"
+  ],
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --banner:js='#!/usr/bin/env node'",
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --format=esm --outfile=dist/index.js --banner:js='#!/usr/bin/env node'",
     "dev": "tsx src/index.ts",
+    "inspect:dist": "pnpm build && npx @modelcontextprotocol/inspector node dist/index.js",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
@@ -20,5 +33,8 @@
     "esbuild": "^0.21.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
