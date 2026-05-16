@@ -1,0 +1,24 @@
+{
+  "name": "@devlog/mcp-server",
+  "version": "0.1.0",
+  "description": "GitHub activity digest MCP server — powered by Claude",
+  "type": "module",
+  "bin": {
+    "devlog-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --target=node18 --outfile=dist/index.js --banner:js='#!/usr/bin/env node'",
+    "dev": "tsx src/index.ts",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@octokit/graphql": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.21.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
