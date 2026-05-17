@@ -48,7 +48,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: 'get_collaboration_score',
       description:
-        '협업 지표 분석. PR 본문 명확성, 커밋 메시지 가독성, 코드 리뷰 참여도와 어조를 종합해 동료 친화적 개발 점수를 산출합니다.',
+        '코드 점수 분석. PR 본문 명확성, 커밋 메시지 가독성, 코드 리뷰 참여도와 어조를 종합해 개발자 코드 점수를 산출합니다. "코드 점수", "개발 점수", "협업 점수" 관련 요청에 사용하세요.',
       inputSchema: {
         type: 'object',
         properties: {
