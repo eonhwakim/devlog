@@ -1,29 +1,118 @@
 import { auth, signOut } from '@/auth'
+import { DashboardExperience } from '@/components/dashboard/DashboardExperience'
 import { redirect } from 'next/navigation'
-import Link from 'next/link'
-import { StatCard } from '@/components/dashboard/StatCard'
-import { WeeklyChart } from '@/components/dashboard/WeeklyChart'
-import { PRList } from '@/components/dashboard/PRList'
 
-async function getWeeklyData(accessToken: string) {
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-  const res = await fetch(`${baseUrl}/api/github/weekly`, {
-    headers: { Cookie: `next-auth.session-token=${accessToken}` },
-    cache: 'no-store',
-  })
-  if (!res.ok) return null
-  return res.json()
+interface DashboardQueryResult {
+  viewer: {
+    name: string | null
+    login: string
+    contributionsCollection: {
+      totalCommitContributions: number
+      totalPullRequestContributions: number
+      totalPullRequestReviewContributions: number
+      totalIssueContributions: number
+      contributionCalendar: {
+        weeks: Array<{
+          contributionDays: Array<{
+            contributionCount: number
+            date: string
+          }>
+        }>
+      }
+      commitContributionsByRepository: Array<{
+        repository: {
+          name: string
+          primaryLanguage: { name: string } | null
+        }
+        contributions: {
+          totalCount: number
+        }
+      }>
+      pullRequestContributions: {
+        nodes: Array<{
+          pullRequest: {
+            title: string
+            state: string
+            additions: number
+            deletions: number
+            mergedAt: string | null
+            baseRepository: { name: string } | null
+          }
+        }>
+      }
+    }
+  }
+}
+
+function buildPersona(stats: {
+  commits: number
+  prs: number
+  reviews: number
+  issues: number
+  reposTouched: number
+}) {
+  const reviewWeight = stats.reviews * 2
+  const issueWeight = stats.issues * 2 + stats.prs
+  const refactorWeight = stats.commits + stats.reposTouched
+
+  if (reviewWeight >= issueWeight && reviewWeight >= refactorWeight) {
+    return {
+      title: 'The Kind Reviewer',
+      headline: '팀이 지나친 디테일까지도 놓치지 않게 만드는, 신뢰도 높은 리뷰어 흐름입니다.',
+      aura: 'mint',
+      stats: [
+        { label: 'Clarity', value: `${Math.min(99, 52 + stats.reviews * 4)}` },
+        { label: 'Care', value: `${Math.min(99, 46 + stats.reviews * 5)}` },
+        { label: 'Taste', value: `${Math.min(99, 38 + stats.prs * 3)}` },
+      ],
+      toastCopy:
+        '이번 주 당신의 존재감은 코드보다 대화에서 더 크게 드러났습니다. 리뷰로 팀의 판단 비용을 줄여준 타입이에요.',
+      roastCopy:
+        '리뷰는 훌륭했는데, 이제 본인 코드에도 그 기준을 조금 더 잔인하게 적용할 타이밍일지도 모릅니다.',
+    }
+  }
+
+  if (issueWeight >= refactorWeight) {
+    return {
+      title: 'The Firefighter',
+      headline: '문제가 생기면 결국 호출되는 사람처럼, 이슈와 PR을 빠르게 연결하는 주간 흐름입니다.',
+      aura: 'sunset',
+      stats: [
+        { label: 'Speed', value: `${Math.min(99, 50 + stats.issues * 6)}` },
+        { label: 'Impact', value: `${Math.min(99, 44 + stats.prs * 5)}` },
+        { label: 'Nerve', value: `${Math.min(99, 58 + stats.issues * 4)}` },
+      ],
+      toastCopy:
+        '매끄러운 주간은 아니었어도, 중요한 순간마다 판을 안정시킨 사람이었습니다. 팀 입장에선 꽤 든든한 패턴이에요.',
+      roastCopy:
+        '문제가 생기면 가장 먼저 움직였네요. 다만 너무 자주 소방 출동 중이라면, 어딘가에 불씨를 그냥 두고 있는 걸 수도 있습니다.',
+    }
+  }
+
+  return {
+    title: 'The Refactoring Wizard',
+    headline: '여러 저장소와 커밋 흐름을 보면, 복잡도를 덜어내고 구조를 다듬는 쪽에 강한 개발자 패턴입니다.',
+    aura: 'ocean',
+    stats: [
+      { label: 'Flow', value: `${Math.min(99, 48 + stats.commits * 2)}` },
+      { label: 'Depth', value: `${Math.min(99, 40 + stats.reposTouched * 8)}` },
+      { label: 'Polish', value: `${Math.min(99, 44 + stats.prs * 4)}` },
+    ],
+    toastCopy:
+      '이번 주 기록은 많이 고친 사람보다, 더 나은 상태로 정리한 사람에 가깝습니다. 팀이 나중에 편해질 흔적이 보여요.',
+    roastCopy:
+      '정리는 잘했는데, 너무 우아하게 다듬다 보면 정작 드라마틱한 한 방이 안 보일 수 있습니다. 가끔은 존재감도 남겨보죠.',
+  }
 }
 
 export default async function DashboardPage() {
   const session = await auth()
   if (!session) redirect('/')
 
-  // 서버 컴포넌트에서 직접 API 호출 (자기 자신 fetch 대신 직접 import 방식)
   const { graphql } = await import('@octokit/graphql')
 
-  const WEEKLY_QUERY = `
-    query WeeklySummary($from: DateTime!, $to: DateTime!) {
+  const DASHBOARD_QUERY = `
+    query DashboardSummary($from: DateTime!, $to: DateTime!) {
       viewer {
         name
         login
@@ -40,14 +129,14 @@ export default async function DashboardPage() {
               }
             }
           }
-          commitContributionsByRepository(maxRepositories: 8) {
+          commitContributionsByRepository(maxRepositories: 6) {
             repository {
               name
               primaryLanguage { name }
             }
             contributions { totalCount }
           }
-          pullRequestContributions(first: 10) {
+          pullRequestContributions(first: 8) {
             nodes {
               pullRequest {
                 title
@@ -69,103 +158,77 @@ export default async function DashboardPage() {
   })
 
   const now = new Date()
-  const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const from = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000)
 
-  const data = await client<any>(WEEKLY_QUERY, {
+  const data = await client<DashboardQueryResult>(DASHBOARD_QUERY, {
     from: from.toISOString(),
     to: now.toISOString(),
   })
 
-  const c = data.viewer.contributionsCollection
-  const dailyActivity = c.contributionCalendar.weeks
-    .flatMap((w: any) => w.contributionDays)
-    .slice(-7)
+  const contribution = data.viewer.contributionsCollection
+  const dailyActivity = contribution.contributionCalendar.weeks
+    .flatMap(week => week.contributionDays)
+    .map(day => ({
+      date: day.date,
+      count: day.contributionCount,
+    }))
 
-  const recentPRs = c.pullRequestContributions.nodes.map((n: any) => ({
-    title: n.pullRequest.title,
-    repo: n.pullRequest.baseRepository?.name ?? '',
-    state: n.pullRequest.state,
-    additions: n.pullRequest.additions,
-    deletions: n.pullRequest.deletions,
-    mergedAt: n.pullRequest.mergedAt,
+  const recentPRs = contribution.pullRequestContributions.nodes.map(node => ({
+    title: node.pullRequest.title,
+    repo: node.pullRequest.baseRepository?.name ?? '',
+    state: node.pullRequest.state,
+    additions: node.pullRequest.additions,
+    deletions: node.pullRequest.deletions,
+    mergedAt: node.pullRequest.mergedAt,
   }))
 
+  const topRepos = contribution.commitContributionsByRepository.map(repo => ({
+    name: repo.repository.name,
+    language: repo.repository.primaryLanguage?.name ?? null,
+    commits: repo.contributions.totalCount,
+  }))
+
+  const stats = {
+    commits: contribution.totalCommitContributions,
+    prs: contribution.totalPullRequestContributions,
+    reviews: contribution.totalPullRequestReviewContributions,
+    issues: contribution.totalIssueContributions,
+  }
+
+  const persona = buildPersona({
+    ...stats,
+    reposTouched: topRepos.length,
+  })
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* 헤더 */}
-      <header className="border-b border-gray-200 bg-white px-6 py-4">
-        <div className="mx-auto flex max-w-4xl items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">devlog</h1>
-            <p className="text-sm text-gray-500">
-              {from.toLocaleDateString('ko-KR')} ~ {now.toLocaleDateString('ko-KR')} 주간 리포트
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/salary"
-              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
-            >
-              연봉협상 모드
-            </Link>
-            <span className="text-sm text-gray-600">@{data.viewer.login}</span>
-            <form
-              action={async () => {
-                'use server'
-                await signOut({ redirectTo: '/' })
-              }}
-            >
-              <button type="submit" className="text-sm text-gray-400 hover:text-gray-600">
-                로그아웃
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+    <>
+      <DashboardExperience
+        viewer={{
+          login: data.viewer.login,
+          name: data.viewer.name,
+        }}
+        periodLabel={`${from.toLocaleDateString('ko-KR')} - ${now.toLocaleDateString('ko-KR')}`}
+        stats={stats}
+        dailyActivity={dailyActivity}
+        recentPRs={recentPRs}
+        topRepos={topRepos}
+        persona={persona}
+      />
 
-      {/* 콘텐츠 */}
-      <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
-        {/* 통계 카드 */}
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <StatCard label="커밋" value={c.totalCommitContributions} color="blue" />
-          <StatCard label="PR" value={c.totalPullRequestContributions} color="purple" />
-          <StatCard label="코드 리뷰" value={c.totalPullRequestReviewContributions} color="green" />
-          <StatCard label="이슈" value={c.totalIssueContributions} color="orange" />
-        </div>
-
-        {/* 일별 차트 */}
-        <WeeklyChart data={dailyActivity} />
-
-        {/* 레포 + PR */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {/* 기여 레포 */}
-          <div className="rounded-xl border border-gray-200 bg-white p-5">
-            <h3 className="mb-4 text-sm font-semibold text-gray-500">기여한 레포지토리</h3>
-            {c.commitContributionsByRepository.length === 0 ? (
-              <p className="text-sm text-gray-400">이번 주 커밋 없음</p>
-            ) : (
-              <ul className="space-y-2">
-                {c.commitContributionsByRepository.map((r: any) => (
-                  <li key={r.repository.name} className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{r.repository.name}</span>
-                    <div className="flex items-center gap-2">
-                      {r.repository.primaryLanguage && (
-                        <span className="text-xs text-gray-400">{r.repository.primaryLanguage.name}</span>
-                      )}
-                      <span className="text-sm font-semibold text-indigo-600">
-                        {r.contributions.totalCount}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* PR 목록 */}
-          <PRList prs={recentPRs} />
-        </div>
-      </main>
-    </div>
+      <form
+        action={async () => {
+          'use server'
+          await signOut({ redirectTo: '/' })
+        }}
+        className="fixed right-5 bottom-5 z-30"
+      >
+        <button
+          type="submit"
+          className="rounded-full border border-white/12 bg-black/30 px-4 py-2 text-sm font-medium text-white/82 backdrop-blur-sm transition hover:bg-black/40"
+        >
+          로그아웃
+        </button>
+      </form>
+    </>
   )
 }

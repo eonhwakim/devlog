@@ -4,8 +4,6 @@ import {
   BarChart,
   Bar,
   XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from 'recharts'
@@ -17,19 +15,38 @@ interface WeeklyChartProps {
 export function WeeklyChart({ data }: WeeklyChartProps) {
   const formatted = data.map(d => ({
     day: new Date(d.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
-    기여: d.count,
+    activity: d.count,
   }))
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
-      <h3 className="mb-4 text-sm font-semibold text-gray-500">일별 기여 활동</h3>
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={formatted} barSize={28}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-          <XAxis dataKey="day" tick={{ fontSize: 12 }} />
-          <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-          <Tooltip />
-          <Bar dataKey="기여" fill="#6366f1" radius={[4, 4, 0, 0]} />
+    <div>
+      <div className="mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--dashboard-muted)]">
+          Momentum
+        </p>
+        <h3 className="mt-2 text-lg font-semibold text-[var(--dashboard-text)]">Recent contribution flow</h3>
+      </div>
+
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={formatted} barCategoryGap="18%">
+          <XAxis
+            dataKey="day"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fontSize: 12, fill: 'var(--dashboard-soft)' }}
+          />
+          <Tooltip
+            cursor={{ fill: 'rgba(255,255,255,0.05)' }}
+            contentStyle={{
+              borderRadius: 16,
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(14,18,32,0.92)',
+              backdropFilter: 'blur(12px)',
+              color: '#fff',
+            }}
+            labelStyle={{ color: 'rgba(255,255,255,0.72)' }}
+          />
+          <Bar dataKey="activity" fill="var(--dashboard-accent)" radius={[10, 10, 4, 4]} />
         </BarChart>
       </ResponsiveContainer>
     </div>
