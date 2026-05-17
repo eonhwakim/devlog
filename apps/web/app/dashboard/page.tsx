@@ -1,5 +1,6 @@
 import { auth, signOut } from '@/auth'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { StatCard } from '@/components/dashboard/StatCard'
 import { WeeklyChart } from '@/components/dashboard/WeeklyChart'
 import { PRList } from '@/components/dashboard/PRList'
@@ -101,6 +102,12 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="flex items-center gap-4">
+            <Link
+              href="/salary"
+              className="rounded-lg bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              연봉협상 모드
+            </Link>
             <span className="text-sm text-gray-600">@{data.viewer.login}</span>
             <form
               action={async () => {
