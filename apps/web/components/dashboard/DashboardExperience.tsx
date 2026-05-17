@@ -5,17 +5,26 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { WrappedExperience } from './WrappedExperience'
 import {
+  LucideIcon,
   Activity,
   ArrowRight,
-  Copy,
+  Award,
+  Calendar,
+  Clock,
+  Coffee,
   Flame,
+  Gem,
   GitPullRequest,
+  Globe,
   MessageSquareMore,
+  Moon,
   Share2,
   Sparkles,
+  Sun,
   TrendingUp,
   Trophy,
   Wallet,
+  Zap,
 } from 'lucide-react'
 import {
   Bar,
@@ -104,15 +113,192 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } }
 }
 
+
+// ── Insight Panel helpers ──────────────────────────────────────────────────
+interface Achievement {
+  icon: LucideIcon; title: string; desc: string; unlocked: boolean; hint: string
+}
+
+function computeStreak(days: Array<{ count: number }>) {
+  let max = 0, cur = 0
+  for (const d of days) { if (d.count > 0) { cur++; max = Math.max(max, cur) } else cur = 0 }
+  return max
+}
+
+function buildAchievements(
+  stats: { commits: number; prs: number; reviews: number; issues: number },
+  streak: number, activeDays: number, uniqueLangs: number, hrs: number[] | null,
+): Achievement[] {
+  const tot = hrs?.reduce((a, b) => a + b, 0) ?? 0
+  const night = hrs ? hrs.slice(0, 5).reduce((a, b) => a + b, 0) + hrs[23] : 0
+  const nightPct = tot > 0 ? Math.round((night / tot) * 100) : 0
+  return [
+    { icon: Gem, title: '1K 커밋', desc: `${stats.commits.toLocaleString()} 커밋`, unlocked: stats.commits >= 1000, hint: `${Math.max(0, 1000 - stats.commits)}개 남음` },
+    { icon: Flame, title: '7일 연속', desc: `스트릭 ${streak}일`, unlocked: streak >= 7, hint: `현재 ${streak}일` },
+    { icon: Activity, title: '마라톤 코더', desc: '30일 연속 달성', unlocked: streak >= 30, hint: `${streak}/30일` },
+    { icon: Zap, title: 'PR 파워유저', desc: `PR ${stats.prs}개`, unlocked: stats.prs >= 15, hint: `${Math.max(0, 15 - stats.prs)}개 더` },
+    { icon: Award, title: '리뷰 MVP', desc: `리뷰 ${stats.reviews}회`, unlocked: stats.reviews >= 20, hint: `${Math.max(0, 20 - stats.reviews)}회 더` },
+    { icon: Globe, title: '폴리글랏', desc: `${uniqueLangs}개 언어`, unlocked: uniqueLangs >= 3, hint: `${uniqueLangs}/3개` },
+    { icon: Moon, title: '심야 부엉이', desc: `심야 ${nightPct}%`, unlocked: nightPct > 20, hint: hrs ? `${nightPct}%/20%` : '분석 중' },
+    { icon: Calendar, title: '성실 개발자', desc: `${activeDays}일 활동`, unlocked: activeDays >= 30, hint: `${activeDays}/30일` },
+  ]
+}
+
+function InsightPanel({
+  stats, topRepos, commitsByHour, streak, activeDays,
+}: {
+  stats: DashboardExperienceProps['stats']
+  topRepos: DashboardExperienceProps['topRepos']
+  commitsByHour: number[] | null
+  streak: number
+  activeDays: number
+}) {
+  const uniqueLangs = useMemo(() => new Set(topRepos.map(r => r.language).filter(Boolean)).size, [topRepos])
+  const achievements = useMemo(() => buildAchievements(stats, streak, activeDays, uniqueLangs, commitsByHour), [stats, streak, activeDays, uniqueLangs, commitsByHour])
+  
+  const peakHour = commitsByHour ? commitsByHour.indexOf(Math.max(...commitsByHour)) : null
+  const PeakIcon = peakHour === null ? Clock : peakHour >= 22 || peakHour <= 4 ? Moon : peakHour <= 9 ? Sun : peakHour <= 14 ? Coffee : Sun
+
+  return (
+    <div className="lg:col-span-6 flex flex-col relative overflow-hidden rounded-[2.5rem] border border-white/8 bg-gradient-to-b from-[#111827] to-[#0b101a] p-8 md:p-10 shadow-2xl">
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(49,208,164,0.06),transparent_55%)] pointer-events-none" />
+      <div className="relative z-10 flex flex-col h-full gap-8">
+
+        {/* 헤더 */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--dashboard-muted)]">나의 GitHub</p>
+            <h3 className="text-xl font-black text-white tracking-tight">개발자 분석</h3>
+          </div>
+        </div>
+
+        {/* ── 1. 펀치카드 (Activity Pattern) ── */}
+        <div className="space-y-4 flex-1 flex flex-col">
+          <h4 className="text-[11px] font-bold uppercase tracking-widest text-[var(--dashboard-muted)] flex items-center gap-2">
+            <Activity className="w-3.5 h-3.5" /> Activity Pattern
+          </h4>
+          <div className="rounded-[1.5rem] border border-white/5 bg-black/20 p-6 backdrop-blur-sm flex-1 flex flex-col justify-center">
+            {commitsByHour ? (
+              <div className="flex flex-col gap-6">
+                <div className="flex items-end gap-1 h-40 md:h-48">
+                  {commitsByHour.map((count, hour) => {
+                    const maxVal = Math.max(...commitsByHour, 1)
+                    const pct = count / maxVal
+                    const isPeak = count === maxVal && count > 0
+                    const isActive = count > 0
+                    return (
+                      <div key={hour} className="relative flex-1 flex flex-col items-center justify-end group h-full">
+                        <motion.div
+                          initial={{ scaleY: 0 }}
+                          whileInView={{ scaleY: 1 }}
+                          viewport={{ once: true }}
+                          transition={{ duration: 0.5, delay: hour * 0.015, ease: 'easeOut' }}
+                          style={{ height: `${Math.max(4, pct * 100)}%`, transformOrigin: 'bottom' }}
+                          className={cn(
+                            'w-full rounded-t-[2px] transition-all duration-300',
+                            isPeak ? 'bg-[var(--dashboard-accent)]' : isActive ? 'bg-[var(--dashboard-accent)]/40 hover:bg-[var(--dashboard-accent)]/60' : 'bg-white/5 hover:bg-white/10'
+                          )}
+                        />
+                        <div className="absolute bottom-full mb-2 hidden group-hover:flex z-20 flex-col items-center">
+                          <div className="rounded-lg bg-[#0f172a] border border-white/10 px-2.5 py-1.5 text-[10px] font-medium text-white shadow-xl whitespace-nowrap">
+                            {hour}시 · <span className="font-bold text-[var(--dashboard-accent)]">{count}</span>회
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="flex justify-between text-[9px] font-medium text-[var(--dashboard-muted)] px-0.5">
+                  {['00:00','06:00','12:00','18:00','23:59'].map(h => <span key={h}>{h}</span>)}
+                </div>
+                
+                <div className="flex items-center gap-3 mt-1 px-3 py-2 rounded-xl bg-[var(--dashboard-accent)]/5 border border-[var(--dashboard-accent)]/10">
+                  <PeakIcon className="w-4 h-4 text-[var(--dashboard-accent)]" />
+                  <div className="flex-1">
+                    <p className="text-[11px] text-white">
+                      <span className="font-bold">골든 타임은 {peakHour}시</span>
+                      <span className="text-[var(--dashboard-muted)] ml-1">
+                        {peakHour !== null && (peakHour >= 22 || peakHour <= 4) ? '· 심야 집중형' :
+                         peakHour !== null && peakHour <= 9 ? '· 아침형 인간' :
+                         peakHour !== null && peakHour <= 14 ? '· 오후 몰입형' :
+                         '· 저녁형 개발자'}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="flex h-24 items-center justify-center gap-2 text-[11px] text-[var(--dashboard-muted)]">
+                <Activity className="h-3 w-3 animate-pulse" />
+                분석 중...
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── 2. 뱃지 (Achievements) ── */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[11px] font-bold uppercase tracking-widest text-[var(--dashboard-muted)] flex items-center gap-2">
+              <Award className="w-3.5 h-3.5" /> Achievements
+            </h4>
+            <span className="text-[10px] font-medium text-[var(--dashboard-accent)]">
+              {achievements.filter(a => a.unlocked).length}/{achievements.length} 획득
+            </span>
+          </div>
+          <div className="grid grid-cols-4 gap-2">
+            {achievements.map((a, i) => {
+              const Icon = a.icon;
+              return (
+                <motion.div key={a.title}
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.05, duration: 0.3 }}
+                  className="group relative"
+                >
+                  <div className={cn(
+                    'flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border transition-all duration-300 aspect-square',
+                    a.unlocked
+                      ? 'border-[var(--dashboard-accent)]/20 bg-gradient-to-b from-[var(--dashboard-accent)]/10 to-transparent hover:border-[var(--dashboard-accent)]/40 hover:bg-[var(--dashboard-accent)]/15 shadow-[0_0_15px_rgba(49,208,164,0.05)]'
+                      : 'border-white/5 bg-black/20 opacity-60 grayscale hover:opacity-80'
+                  )}>
+                    <Icon className={cn("w-6 h-6", a.unlocked ? "text-[var(--dashboard-accent)]" : "text-white/40")} strokeWidth={a.unlocked ? 2 : 1.5} />
+                    <span className={cn('text-[9px] font-bold tracking-tight text-center leading-tight', a.unlocked ? 'text-white' : 'text-white/50')}>
+                      {a.title}
+                    </span>
+                  </div>
+                  
+                  {/* Tooltip */}
+                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
+                    <div className="bg-[#0f172a] border border-white/10 rounded-xl p-2.5 shadow-xl flex flex-col gap-1 items-center text-center">
+                      <span className="text-[10px] font-bold text-white">{a.title}</span>
+                      <span className="text-[9px] text-[var(--dashboard-muted)]">{a.unlocked ? a.desc : a.hint}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              )
+            })}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  )
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────
 export function DashboardExperience({
   viewer, periodLabel, stats, dailyActivity, recentPRs, topRepos, persona,
 }: DashboardExperienceProps) {
   const [mode, setMode] = useState<Mode>('toast')
-  const [copied, setCopied] = useState(false)
   const [scoreMini, setScoreMini] = useState<ScoreMini | null>(null)
+  const [commitsByHour, setCommitsByHour] = useState<number[] | null>(null)
 
   const techStack = useMemo(() => buildTechStack(topRepos), [topRepos])
   const stackTotal = techStack.reduce((s, i) => s + i.value, 0)
+  const streak = useMemo(() => computeStreak(dailyActivity), [dailyActivity])
+  const activeDays = useMemo(() => dailyActivity.filter(d => d.count > 0).length, [dailyActivity])
 
   useEffect(() => {
     fetch('/api/github/score?weeks=4')
@@ -120,8 +306,9 @@ export function DashboardExperience({
       .then(d => d && setScoreMini({ total: d.total, categories: d.categories }))
       .catch(() => {})
 
-    fetch('/api/github/trends?months=3')
+    fetch('/api/github/personal')
       .then(r => r.ok ? r.json() : null)
+      .then(d => d?.commitsByHour && setCommitsByHour(d.commitsByHour))
       .catch(() => {})
   }, [])
 
@@ -140,11 +327,7 @@ export function DashboardExperience({
     )
   }
 
-  async function handleCopy(text: string) {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
-  }
+
 
   return (
     <div className={cn('dashboard-shell min-h-screen font-sans', themeClass)}>
@@ -198,87 +381,138 @@ export function DashboardExperience({
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-[1400px] px-6 pb-24">
+      <main className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
           {/* ── HERO ── */}
-          <motion.section variants={itemVariants} className="pt-24 pb-20 text-center flex flex-col items-center">
+          <motion.section variants={itemVariants} className="pt-20 pb-12 flex flex-col items-start text-left">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className="inline-flex items-center gap-2 rounded-full border border-[var(--dashboard-accent)]/30 bg-[var(--dashboard-accent)]/10 px-4 py-1.5 mb-8"
+              className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--dashboard-muted)] mb-4"
             >
               <Sparkles className="h-4 w-4 text-[var(--dashboard-accent)]" />
-              <span className="text-xs font-bold uppercase tracking-widest text-[var(--dashboard-accent)]">
-                GitHub · Wrapped 2025
-              </span>
+              <span>GitHub</span>
+              <span>·</span>
+              <span>Verified</span>
+              <span>·</span>
+              <span>2025</span>
             </motion.div>
             
-            <h2 className="text-6xl md:text-8xl font-black tracking-tighter text-[var(--dashboard-text)] leading-[1.1]">
+            <h2 className="text-6xl md:text-[5.5rem] lg:text-[6.5rem] font-black tracking-tighter text-white leading-[1.05] mb-4">
               Your year was a<br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--dashboard-accent)] to-blue-400 filter drop-shadow-[0_0_30px_rgba(49,208,164,0.3)]">
+              <span className="text-[var(--dashboard-accent)] filter drop-shadow-[0_0_30px_rgba(49,208,164,0.3)]">
                 masterpiece.
               </span>
             </h2>
-            <p className="mt-8 text-xl md:text-2xl font-medium text-[var(--dashboard-soft)] max-w-2xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl font-medium text-[var(--dashboard-soft)] max-w-3xl leading-relaxed">
               {persona.headline}
             </p>
-            <p className="mt-6 text-sm font-semibold tracking-wider text-[var(--dashboard-muted)] uppercase">{periodLabel}</p>
           </motion.section>
 
-          {/* ── STATS ROW ── */}
-          <motion.section variants={itemVariants} className="pb-16">
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4 md:gap-8">
-              {[
-                { icon: Activity,           label: '커밋',      value: stats.commits,  desc: '코드 변경' },
-                { icon: GitPullRequest,     label: 'Pull Request', value: stats.prs,   desc: 'PR 생성' },
-                { icon: MessageSquareMore,  label: '코드 리뷰', value: stats.reviews,  desc: '리뷰 작성' },
-                { icon: Activity,           label: '이슈',      value: stats.issues,   desc: '이슈 처리' },
-              ].map((item) => {
-                const Icon = item.icon
-                return (
-                  <motion.div 
-                    key={item.label} 
-                    whileHover={{ y: -5, scale: 1.02 }}
-                    className="relative overflow-hidden rounded-[2rem] border border-white/5 bg-gradient-to-b from-white/[0.08] to-transparent p-8 backdrop-blur-md shadow-2xl group"
-                  >
-                    <div className="absolute -right-4 -top-4 h-24 w-24 rounded-full bg-[var(--dashboard-accent)]/10 blur-2xl group-hover:bg-[var(--dashboard-accent)]/20 transition-all duration-500" />
-                    
-                    <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--dashboard-accent)]/20 shadow-[0_0_15px_rgba(49,208,164,0.15)] mb-6 group-hover:scale-110 transition-transform duration-300">
-                      <Icon className="h-7 w-7 text-[var(--dashboard-accent)]" />
-                    </div>
-                    <div>
-                      <p className="text-5xl font-black tracking-tighter text-[var(--dashboard-text)] mb-2">
-                        {item.value.toLocaleString()}
-                      </p>
-                      <p className="text-base font-semibold tracking-wide text-[var(--dashboard-muted)] uppercase">
-                        {item.label}
-                      </p>
-                    </div>
-                  </motion.div>
-                )
-              })}
+          {/* ── TOP GRID (Match Image) ── */}
+          <motion.section variants={itemVariants} className="pb-16 grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <InsightPanel
+            stats={stats}
+            topRepos={topRepos}
+            commitsByHour={commitsByHour}
+            streak={streak}
+            activeDays={activeDays}
+          />
+
+            {/* RIGHT: Stacked Cards */}
+            <div className="lg:col-span-6 flex flex-col gap-6">
+              
+              {/* Tech Stack Trend (Top Right) */}
+              <div className="flex-1 rounded-[2.5rem] border border-white/5 bg-[#121620] p-8 md:p-10 hover:bg-white/[0.03] transition-colors relative overflow-hidden shadow-2xl flex flex-col justify-center">
+                <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.03),transparent_50%)] pointer-events-none" />
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                  <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--dashboard-muted)]">
+                    <TrendingUp className="h-3.5 w-3.5 text-[var(--dashboard-accent)]" /> Tech Stack Trend
+                  </div>
+                  <span className="text-[10px] font-semibold text-[var(--dashboard-muted)] uppercase tracking-wider">% of commits</span>
+                </div>
+                
+                <h4 className="text-2xl md:text-3xl font-bold text-white mb-6 relative z-10">Languages of 2025</h4>
+                
+                <div className="flex items-center gap-8 relative z-10">
+                  <div className="h-32 w-32 shrink-0">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={techStack} dataKey="value" nameKey="name" innerRadius={35} outerRadius={60} stroke="transparent" paddingAngle={2}>
+                          {techStack.map((item, i) => (
+                            <Cell key={item.name} fill={STACK_COLORS[i % STACK_COLORS.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div className="flex-1 w-full space-y-3.5">
+                    {techStack.slice(0, 5).map((item, i) => (
+                      <div key={item.name} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="h-3 w-3 rounded-full" style={{ backgroundColor: STACK_COLORS[i % STACK_COLORS.length] }} />
+                          <span className="font-medium text-white">{item.name}</span>
+                        </div>
+                        <span className="text-sm font-semibold text-[var(--dashboard-muted)]">
+                          {stackTotal > 0 ? `${Math.round((item.value / stackTotal) * 100)}%` : '-'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* By the numbers (Bottom Right) */}
+              <div className="flex-1 rounded-[2.5rem] border border-white/5 bg-[#121620] p-8 md:p-10 hover:bg-white/[0.03] transition-colors relative overflow-hidden shadow-2xl flex flex-col justify-center">
+                <div className="flex items-center justify-between mb-6 relative z-10">
+                  <h4 className="text-2xl font-bold text-white">By the numbers</h4>
+                  <span className="text-[10px] font-semibold text-[var(--dashboard-muted)] uppercase tracking-wider">Total</span>
+                </div>
+                
+                <div className="flex flex-col gap-3 relative z-10">
+                  {[
+                    { icon: Activity, label: 'Commits', value: stats.commits },
+                    { icon: GitPullRequest, label: 'Pull Requests', value: stats.prs },
+                    { icon: MessageSquareMore, label: 'Reviews', value: stats.reviews },
+                  ].map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={item.label} className="flex items-center justify-between p-4 md:p-5 rounded-2xl bg-black/20 hover:bg-black/40 transition-colors border border-white/5">
+                        <div className="flex items-center gap-4">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5">
+                            <Icon className="h-5 w-5 text-[var(--dashboard-muted)]" />
+                          </div>
+                          <span className="text-sm md:text-base font-semibold text-white">{item.label}</span>
+                        </div>
+                        <span className="text-2xl md:text-3xl font-black text-white">{item.value.toLocaleString()}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              
             </div>
           </motion.section>
 
-          {/* ── DEEPER INSIGHTS (Promoted to be huge and distinct) ── */}
+          {/* ── DEEPER INSIGHTS (Score & Salary) ── */}
           <motion.section variants={itemVariants} className="pb-16">
             <div className="flex items-center gap-4 mb-8">
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-              <h3 className="text-2xl font-black tracking-tight text-[var(--dashboard-text)] px-4 py-2 border border-white/10 rounded-full bg-white/5 backdrop-blur-sm">
-                Deeper Analysis
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <h3 className="text-xl font-bold tracking-wide text-[var(--dashboard-soft)] px-4 uppercase">
+                Explore More
               </h3>
-              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+              <div className="h-px flex-1 bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* 협업 점수 - 큰 강조 카드 */}
-              <Link href="/score" className="lg:col-span-2 group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-[#0c1620] to-[#181432] p-10 shadow-2xl transition-all duration-500 hover:border-[var(--dashboard-accent)]/50 hover:shadow-[0_0_40px_rgba(49,208,164,0.15)]">
-                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,rgba(49,208,164,0.15),transparent_50%)]" />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* 협업 점수 */}
+              <Link href="/score" className="group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-br from-[#0c1620] to-[#181432] p-10 shadow-2xl transition-all duration-500 hover:border-[var(--dashboard-accent)]/50 hover:shadow-[0_0_40px_rgba(49,208,164,0.15)]">
+                <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,rgba(49,208,164,0.15),transparent_50%)] pointer-events-none" />
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div className="flex justify-between items-start">
                     <div>
@@ -287,14 +521,14 @@ export function DashboardExperience({
                         <span className="text-xs font-bold uppercase tracking-widest text-[var(--dashboard-soft)]">Collaboration Score</span>
                       </div>
                       <h4 className="text-3xl font-bold text-white mb-2 group-hover:text-[var(--dashboard-accent)] transition-colors">협업 역량 분석</h4>
-                      <p className="text-lg text-[var(--dashboard-muted)] max-w-md">PR 본문, 커밋 메시지, 리뷰 품질을 다각도로 분석한 종합 점수입니다.</p>
+                      <p className="text-sm text-[var(--dashboard-muted)] max-w-sm">PR 본문, 커밋 메시지, 리뷰 품질을 다각도로 분석한 종합 점수입니다.</p>
                     </div>
                     <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center border border-white/10 group-hover:bg-[var(--dashboard-accent)]/20 transition-colors">
                       <ArrowRight className="h-5 w-5 text-white group-hover:text-[var(--dashboard-accent)] transition-colors" />
                     </div>
                   </div>
 
-                  <div className="mt-10 flex items-end gap-12">
+                  <div className="mt-10 flex items-end gap-8">
                     {scoreMini ? (
                       <>
                         <div className="flex items-baseline gap-3">
@@ -306,14 +540,14 @@ export function DashboardExperience({
                             <span className="text-lg font-medium text-[var(--dashboard-muted)]">/ 100</span>
                           </div>
                         </div>
-                        <div className="flex-1 space-y-4 max-w-md">
+                        <div className="flex-1 space-y-3 max-w-[200px] hidden sm:block">
                           {scoreMini.categories.slice(0, 3).map(c => (
                             <div key={c.key} className="space-y-1.5">
-                              <div className="flex justify-between text-sm font-semibold">
-                                <span className="text-[var(--dashboard-soft)]">{c.label}</span>
+                              <div className="flex justify-between text-xs font-semibold">
+                                <span className="text-[var(--dashboard-soft)] truncate max-w-[100px]">{c.label}</span>
                                 <span className="text-white">{c.score} <span className="text-[var(--dashboard-muted)]">/ {c.max}</span></span>
                               </div>
-                              <div className="h-2 w-full rounded-full bg-black/40 overflow-hidden border border-white/5">
+                              <div className="h-1.5 w-full rounded-full bg-black/40 overflow-hidden border border-white/5">
                                 <motion.div 
                                   initial={{ width: 0 }}
                                   whileInView={{ width: `${(c.score / c.max) * 100}%` }}
@@ -326,72 +560,46 @@ export function DashboardExperience({
                         </div>
                       </>
                     ) : (
-                      <div className="flex items-center gap-3 text-xl text-[var(--dashboard-muted)] font-medium">
-                        <div className="h-6 w-6 animate-spin rounded-full border-4 border-[var(--dashboard-accent)]/30 border-t-[var(--dashboard-accent)]" />
-                        AI가 협업 데이터를 분석하고 있습니다...
+                      <div className="flex items-center gap-3 text-sm text-[var(--dashboard-muted)] font-medium">
+                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--dashboard-accent)]/30 border-t-[var(--dashboard-accent)]" />
+                        분석 중...
                       </div>
                     )}
                   </div>
                 </div>
               </Link>
 
-              <div className="flex flex-col gap-6">
-                {/* 기술 트렌드 */}
-                <Link href="/trends" className="flex-1 group relative overflow-hidden rounded-[2.5rem] border border-white/10 bg-gradient-to-b from-white/[0.06] to-transparent p-8 hover:bg-white/[0.08] transition-all duration-300">
-                  <div className="flex justify-between items-start mb-6">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-3 py-1">
-                      <TrendingUp className="h-3.5 w-3.5 text-[var(--dashboard-accent)]" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--dashboard-soft)]">Tech Trend</span>
-                    </div>
-                    <ArrowRight className="h-5 w-5 text-[var(--dashboard-muted)] group-hover:text-white transition-colors group-hover:translate-x-1" />
-                  </div>
-                  <h4 className="text-2xl font-bold text-white mb-6">3개월 언어 트렌드</h4>
-                  <div className="space-y-4">
-                    {techStack.slice(0, 3).map((item, i) => (
-                      <div key={item.name} className="flex items-center gap-4">
-                        <div className="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center bg-black/20 border border-white/5 shadow-inner">
-                          <span className="h-3 w-3 rounded-full" style={{ backgroundColor: STACK_COLORS[i], boxShadow: `0 0 10px ${STACK_COLORS[i]}` }} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-base font-bold text-white">{item.name}</span>
-                            <span className="text-sm font-semibold text-[var(--dashboard-muted)]">
-                              {stackTotal > 0 ? `${Math.round((item.value / stackTotal) * 100)}%` : '-'}
-                            </span>
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-black/30 overflow-hidden">
-                            <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${(item.value / stackTotal) * 100}%`, backgroundColor: STACK_COLORS[i] }} />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </Link>
-
-                {/* 연봉 협상 */}
-                <Link href="/salary" className="flex-1 group relative overflow-hidden rounded-[2.5rem] border border-[var(--dashboard-accent)]/20 bg-[var(--dashboard-accent)]/5 p-8 hover:bg-[var(--dashboard-accent)]/10 transition-all duration-300">
-                  <div className="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-500">
-                    <Wallet className="h-48 w-48 text-[var(--dashboard-accent)]" />
-                  </div>
-                  <div className="relative z-10">
-                    <div className="inline-flex items-center gap-2 rounded-full bg-[var(--dashboard-accent)]/20 border border-[var(--dashboard-accent)]/30 px-3 py-1 mb-4">
-                      <Sparkles className="h-3.5 w-3.5 text-[var(--dashboard-accent)]" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--dashboard-accent)]">Salary Negotiation</span>
+              {/* 연봉 협상 */}
+              <Link href="/salary" className="group relative overflow-hidden rounded-[2.5rem] border border-[var(--dashboard-accent)]/20 bg-[var(--dashboard-accent)]/5 p-10 hover:bg-[var(--dashboard-accent)]/10 transition-all duration-300">
+                <div className="absolute -right-10 -bottom-10 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                  <Wallet className="h-48 w-48 text-[var(--dashboard-accent)]" />
+                </div>
+                <div className="relative z-10 flex flex-col h-full">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full bg-[var(--dashboard-accent)]/20 border border-[var(--dashboard-accent)]/30 px-4 py-1.5 mb-6">
+                      <Sparkles className="h-4 w-4 text-[var(--dashboard-accent)]" />
+                      <span className="text-xs font-bold uppercase tracking-widest text-[var(--dashboard-accent)]">Salary Negotiation</span>
                     </div>
                     <h4 className="text-3xl font-black text-white mb-3">연봉 협상 모드</h4>
-                    <p className="text-base text-[var(--dashboard-soft)] mb-6 leading-relaxed">
-                      Claude가 연간 성과를 분석해 강력한 어필 포인트를 생성합니다.
+                    <p className="text-sm text-[var(--dashboard-soft)] max-w-sm mb-6 leading-relaxed">
+                      Claude가 연간 성과를 분석해 강력한 어필 포인트를 생성합니다. 협상 테이블에서 자신감을 가지세요.
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                  </div>
+                  
+                  <div className="mt-auto flex justify-between items-end">
+                    <div className="flex flex-wrap gap-2 max-w-[250px]">
                       {['커밋 수', 'PR 임팩트', '협업 스타일'].map(tag => (
                         <span key={tag} className="rounded-xl bg-black/40 px-3 py-1 text-xs font-semibold text-white/70 backdrop-blur-md">
                           {tag}
                         </span>
                       ))}
                     </div>
+                    <div className="h-12 w-12 rounded-full bg-[var(--dashboard-accent)]/10 flex items-center justify-center border border-[var(--dashboard-accent)]/20 group-hover:bg-[var(--dashboard-accent)] transition-colors">
+                      <ArrowRight className="h-5 w-5 text-[var(--dashboard-accent)] group-hover:text-black transition-colors" />
+                    </div>
                   </div>
-                </Link>
-              </div>
+                </div>
+              </Link>
             </div>
           </motion.section>
 
@@ -485,61 +693,6 @@ export function DashboardExperience({
                       ))}
                     </ul>
                   }
-                </div>
-              </div>
-            </div>
-          </motion.section>
-
-          {/* ── AI INSIGHT (Toast / Roast) ── */}
-          <motion.section variants={itemVariants} className="pb-16">
-            <div className="relative overflow-hidden rounded-[3rem] border border-[var(--dashboard-accent)]/20 bg-gradient-to-br from-[var(--dashboard-accent)]/10 via-black/40 to-black/80 p-10 md:p-14 shadow-2xl">
-              <div className="absolute top-0 right-0 w-1/2 h-full bg-[radial-gradient(ellipse_at_center,rgba(49,208,164,0.1),transparent_70%)] pointer-events-none" />
-              
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 relative z-10">
-                <div className="lg:col-span-5 flex flex-col justify-center">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/5 border border-white/10 px-4 py-2 mb-6 w-max">
-                    <Sparkles className="h-5 w-5 text-[var(--dashboard-accent)]" />
-                    <span className="text-sm font-bold uppercase tracking-widest text-white">AI Insight</span>
-                  </div>
-                  <h3 className="text-4xl md:text-5xl font-black tracking-tight text-white mb-4">
-                    {persona.title}
-                  </h3>
-                  <p className="text-xl text-[var(--dashboard-soft)] mb-8 font-medium">
-                    {persona.headline}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    {[
-                      { label: '활동일 수', value: dailyActivity.filter(d => d.count > 0).length, suffix: '일' },
-                      { label: '피크 활동', value: Math.max(...dailyActivity.map(d => d.count), 0), suffix: '건/일' },
-                    ].map(item => (
-                      <div key={item.label} className="rounded-2xl border border-white/10 bg-black/40 p-5 backdrop-blur-sm">
-                        <p className="text-3xl font-black text-[var(--dashboard-accent)] mb-1">{item.value}<span className="text-base text-[var(--dashboard-muted)] ml-1 font-semibold">{item.suffix}</span></p>
-                        <p className="text-sm font-bold tracking-wider text-[var(--dashboard-soft)] uppercase">{item.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="lg:col-span-7 flex flex-col">
-                  <div className="flex-1 rounded-[2rem] border border-[var(--dashboard-accent)]/30 bg-black/60 p-8 md:p-10 shadow-inner relative flex flex-col justify-center">
-                    <div className="absolute top-6 left-6 text-6xl text-[var(--dashboard-accent)]/20 font-serif leading-none">&quot;</div>
-                    <div className="absolute bottom-2 right-6 text-6xl text-[var(--dashboard-accent)]/20 font-serif leading-none rotate-180">&quot;</div>
-                    
-                    <p className="text-xl md:text-2xl leading-relaxed text-white font-medium italic relative z-10 px-6">
-                      {persona.toastCopy}
-                    </p>
-                    
-                    <div className="mt-10 flex justify-end">
-                      <button
-                        onClick={() => handleCopy(persona.toastCopy)}
-                        className="flex items-center gap-2 rounded-full bg-[var(--dashboard-accent)] text-black px-6 py-3 font-bold hover:bg-white transition-colors shadow-lg hover:shadow-xl hover:-translate-y-1 transform duration-200"
-                      >
-                        <Copy className="h-5 w-5" />
-                        {copied ? 'Copied!' : 'Copy Quote'}
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
