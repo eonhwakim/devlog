@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState } from 'react'
 import { motion, useMotionValue, useSpring, useTransform, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, ChevronDown, Download, Share2, Sparkles } from 'lucide-react'
 
@@ -10,7 +10,8 @@ interface WrappedExperienceProps {
   stats: { commits: number; prs: number; reviews: number; issues: number }
   persona: { title: string; headline: string; roastCopy: string; toastCopy: string }
   dailyActivity: Array<{ date: string; count: number }>
-  recentPRs: Array<{ title: string; repo: string; state: string; additions: number; deletions: number }>
+  recentPRs: Array<{ title: string; repo: string; state: string; additions: number; deletions: number; mergedAt: string | null }>
+  topRepos: Array<{ name: string; language: string | null; commits: number }>
   onBack: () => void
 }
 
@@ -23,6 +24,130 @@ interface PersonalData {
   bioRhythmType: 'night-owl' | 'morning-bird' | 'afternoon-peak' | 'evening-surge' | 'consistent'
   bioRhythmStats: { nightPct: number; morningPct: number; afternoonPct: number; eveningPct: number; peakHour: number }
   soulmate: { login: string; avatarUrl: string; reviewCount: number } | null
+}
+
+function cn(...v: Array<string | false | null | undefined>) {
+  return v.filter(Boolean).join(' ')
+}
+
+function computeStreak(days: Array<{ count: number }>) {
+  let max = 0, cur = 0
+  for (const d of days) {
+    if (d.count > 0) {
+      cur++
+      max = Math.max(max, cur)
+    } else {
+      cur = 0
+    }
+  }
+  return max
+}
+
+function formatHourLabel(hour: number | null) {
+  if (hour === null || hour < 0) return 'untracked'
+  return `${String(hour).padStart(2, '0')}:00`
+}
+
+function buildPersonaStudy({
+  persona,
+  stats,
+  dailyActivity,
+  topRepos,
+  recentPRs,
+  commitsByHour,
+}: {
+  persona: WrappedExperienceProps['persona']
+  stats: WrappedExperienceProps['stats']
+  dailyActivity: WrappedExperienceProps['dailyActivity']
+  topRepos: WrappedExperienceProps['topRepos']
+  recentPRs: WrappedExperienceProps['recentPRs']
+  commitsByHour: number[] | null
+}) {
+  const activeDays = dailyActivity.filter(day => day.count > 0).length
+  const strongestDay = dailyActivity.reduce((best, day) => day.count > best.count ? day : best, dailyActivity[0] ?? { date: '', count: 0 })
+  const streak = computeStreak(dailyActivity)
+  const mergedPRs = recentPRs.filter(pr => pr.mergedAt).length
+  const mergeRate = recentPRs.length > 0 ? Math.round((mergedPRs / recentPRs.length) * 100) : 0
+  const primaryRepo = topRepos[0]
+  const repoSpread = topRepos.filter(repo => repo.commits > 0).length
+  const reviewDensity = stats.prs > 0 ? (stats.reviews / stats.prs).toFixed(1) : '0.0'
+  const lineDelta = recentPRs.reduce((sum, pr) => sum + pr.additions + pr.deletions, 0)
+  const nightWork = commitsByHour ? commitsByHour.reduce((sum, count, hour) => sum + ((hour >= 22 || hour <= 4) ? count : 0), 0) : 0
+  const totalHourly = commitsByHour ? commitsByHour.reduce((sum, count) => sum + count, 0) : 0
+  const nightRatio = totalHourly > 0 ? Math.round((nightWork / totalHourly) * 100) : 0
+  const peakHour = commitsByHour ? commitsByHour.indexOf(Math.max(...commitsByHour)) : null
+
+  const thesis =
+    stats.reviews >= stats.prs
+      ? '코드를 많이 남기는 사람이라기보다, 판단의 품질을 주변으로 전염시키는 협업형 개발자에 가깝습니다.'
+      : repoSpread >= 3
+        ? '한 저장소에만 머무르지 않고 여러 맥락을 횡단하며 구조를 정리하는 시스템형 개발자 패턴이 관찰됩니다.'
+        : '문제를 발견하면 빠르게 구현과 정리를 동시에 밀어붙이는 실행형 개발자 패턴이 우세하게 나타납니다.'
+
+  const warmAbstract = `본 관찰은 ${activeDays}일의 활동일과 최장 ${streak}일 연속 몰입 구간을 바탕으로, ${persona.title}의 핵심을 '${thesis}'로 요약합니다. 특히 ${primaryRepo?.name ?? '핵심 저장소'} 중심의 작업 흐름과 ${formatHourLabel(peakHour)} 전후의 집중 패턴은, 당신이 단순히 많이 만드는 사람보다 맥락을 깊게 이해한 뒤 정교하게 개입하는 사람임을 시사합니다.`
+  const coldAbstract = `데이터는 성실함보다 선택 편향을 더 강하게 드러냅니다. 활동은 ${primaryRepo?.name ?? '일부 저장소'}와 특정 시간대(${formatHourLabel(peakHour)})에 밀집되어 있으며, 이는 높은 집중력을 의미하는 동시에 에너지 분산과 장기 확장성 측면의 취약점도 암시합니다. 즉 강한 순간은 분명하지만, 영향력을 더 넓은 표면적으로 확장할 여지는 아직 남아 있습니다.`
+
+  const findings = [
+    {
+      id: 'abstract',
+      label: 'Abstract',
+      eyebrow: 'Research Thesis',
+      title: persona.title,
+      body: thesis,
+    },
+    {
+      id: 'signals',
+      label: 'Signals',
+      eyebrow: 'Observed Evidence',
+      title: `${activeDays} active days, ${mergeRate}% merge closure`,
+      body: `${stats.commits} commits, ${stats.prs} PRs, ${stats.reviews} reviews가 남긴 흔적은 구현량과 협업량이 함께 움직이는 개발 리듬을 보여줍니다.`,
+    },
+    {
+      id: 'implication',
+      label: 'Implication',
+      eyebrow: 'Interpretation',
+      title: 'Taste before velocity',
+      body: `최근 PR에서 약 ${lineDelta.toLocaleString()} lines of change가 포착됐고, 리뷰 밀도는 PR당 ${reviewDensity}회 수준입니다. 이는 속도보다 기준선을 세우는 방식으로 영향력을 만드는 성향에 가깝습니다.`,
+    },
+  ] as const
+
+  const evidenceCards = [
+    {
+      label: 'Collaboration Density',
+      value: `${reviewDensity}x`,
+      description: 'PR 1건당 남긴 리뷰 빈도. 팀의 판단 비용을 대신 떠안는 편입니다.',
+    },
+    {
+      label: 'Repository Breadth',
+      value: `${repoSpread} repos`,
+      description: '하나의 컨텍스트보다 여러 문제공간을 넘나들며 구조를 파악하는 타입입니다.',
+    },
+    {
+      label: 'Night Focus Ratio',
+      value: `${nightRatio}%`,
+      description: '심야 시간대 커밋 비중. 몰입이 깊어질수록 시간 감각보다 문제 해결이 우선됩니다.',
+    },
+  ]
+
+  const microNotes = [
+    strongestDay.date
+      ? `Peak output day: ${strongestDay.date}에 ${strongestDay.count}회 활동이 기록됐습니다.`
+      : 'Peak output day: 충분한 일별 데이터가 아직 없습니다.',
+    primaryRepo
+      ? `Primary context: ${primaryRepo.name} 저장소가 현재 사고의 중심축 역할을 했습니다.`
+      : 'Primary context: 저장소별 집중도 데이터가 충분하지 않습니다.',
+    mergedPRs > 0
+      ? `Closure signal: 최근 PR ${recentPRs.length}건 중 ${mergedPRs}건이 merge로 닫혔습니다.`
+      : 'Closure signal: 아직 merge 기반의 결과 신호는 약한 편입니다.',
+  ]
+
+  return {
+    warmAbstract,
+    coldAbstract,
+    findings,
+    evidenceCards,
+    microNotes,
+  }
 }
 
 // ── Scroll-snap 섹션 ────────────────────────────────────────────────────────
@@ -201,103 +326,214 @@ function S1Intro({ viewer, persona, stats }: {
   )
 }
 
-// ── 섹션 2: 올해의 대장정 ─────────────────────────────────────────────────
-function S2EpicPR({ epicPR, inView }: {
-  epicPR: PersonalData['epicPR']
+function S2PersonaStudy({
+  persona,
+  stats,
+  dailyActivity,
+  topRepos,
+  recentPRs,
+  commitsByHour,
+  inView,
+}: {
+  persona: WrappedExperienceProps['persona']
+  stats: WrappedExperienceProps['stats']
+  dailyActivity: WrappedExperienceProps['dailyActivity']
+  topRepos: WrappedExperienceProps['topRepos']
+  recentPRs: WrappedExperienceProps['recentPRs']
+  commitsByHour: number[] | null
   inView: boolean
 }) {
-  if (!epicPR) {
-    return (
-      <div className="text-center max-w-lg">
-        <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-amber-400/60 mb-4">올해의 대장정</p>
-        <p className="text-3xl font-black text-white">PR 데이터를 모으는 중이에요</p>
-        <p className="mt-3 text-sm text-white/40">더 많은 PR을 작성하면 분석이 가능해집니다.</p>
-      </div>
-    )
-  }
-
-  const mergedDate = epicPR.mergedAt
-    ? new Date(epicPR.mergedAt).toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })
-    : null
+  const [isToast, setIsToast] = useState(true)
+  const [activeFinding, setActiveFinding] = useState<'abstract' | 'signals' | 'implication'>('abstract')
+  const study = useMemo(() => buildPersonaStudy({
+    persona,
+    stats,
+    dailyActivity,
+    topRepos,
+    recentPRs,
+    commitsByHour,
+  }), [commitsByHour, dailyActivity, persona, recentPRs, stats, topRepos])
+  const activeFindingData = study.findings.find(finding => finding.id === activeFinding) ?? study.findings[0]
 
   return (
-    <div className="max-w-2xl w-full">
+    <div className="w-full max-w-5xl">
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={inView ? { opacity: 1 } : {}}
-        transition={{ duration: 0.5 }}
-      >
-        <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-amber-400/70 mb-6">
-          📜 올해의 대장정
-        </p>
-      </motion.div>
-
-      {/* 메인 PR 카드 */}
-      <motion.div
-        initial={{ opacity: 0, y: 40 }}
+        initial={{ opacity: 0, y: 24 }}
         animate={inView ? { opacity: 1, y: 0 } : {}}
-        transition={{ delay: 0.15, duration: 0.7 }}
-        className="relative rounded-3xl border border-amber-500/20 bg-amber-500/5 p-7 overflow-hidden"
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+        className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"
       >
-        {/* 배경 글로우 */}
-        <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-amber-500/10 blur-[40px]" />
-        <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-orange-500/10 blur-[30px]" />
-
-        <div className="relative z-10">
-          <div className="flex items-center gap-2 mb-4">
-            <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-              epicPR.state === 'MERGED' ? 'bg-purple-500/20 text-purple-300' :
-              epicPR.state === 'OPEN'   ? 'bg-green-500/20 text-green-300' :
-                                          'bg-white/10 text-white/40'
-            }`}>
-              {epicPR.state === 'MERGED' ? '✓ Merged' : epicPR.state === 'OPEN' ? '⬤ Open' : '✗ Closed'}
-            </span>
-            <span className="text-xs text-white/30">{epicPR.repo}</span>
-            {mergedDate && <span className="ml-auto text-xs text-white/30">{mergedDate}</span>}
-          </div>
-
-          <h2 className="text-2xl font-black tracking-[-0.04em] text-white leading-tight sm:text-3xl">
-            {epicPR.title}
+        <div className="max-w-2xl">
+          <p className="text-[10px] font-bold uppercase tracking-[0.5em] text-cyan-300/70">
+          Interpretive Layer
+          </p>
+          <h2 className="mt-4 text-4xl font-black tracking-[-0.05em] text-white sm:text-5xl">
+          AI Code Persona
           </h2>
+          <p className="mt-4 text-sm leading-7 text-white/50 sm:text-base">
+          이 섹션은 GitHub 흔적을 근거로 당신의 협업 성향과 몰입 방식까지 해석하는 독립 분석 리포트입니다.
+          </p>
+        </div>
 
-          {epicPR.bodyPreview && (
-            <p className="mt-3 text-sm text-white/40 leading-relaxed line-clamp-2 italic">
-              "{epicPR.bodyPreview}"
-            </p>
-          )}
+        <div className="flex bg-black/40 rounded-full p-1 border border-white/10 relative shadow-inner shrink-0 self-start lg:self-auto">
+          <motion.div
+            className="absolute inset-y-1 left-1 rounded-full w-[calc(50%-4px)]"
+            style={{
+              background: isToast
+                ? 'linear-gradient(135deg, rgba(49,208,164,0.2) 0%, rgba(49,208,164,0.05) 100%)'
+                : 'linear-gradient(135deg, rgba(239,68,68,0.2) 0%, rgba(239,68,68,0.05) 100%)',
+              boxShadow: isToast
+                ? '0 0 12px rgba(49,208,164,0.15)'
+                : '0 0 12px rgba(239,68,68,0.15)',
+            }}
+            animate={{ x: isToast ? 0 : '100%' }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          />
+          <button
+            onClick={() => setIsToast(true)}
+            className={cn(
+              'relative z-10 px-3.5 py-1.5 text-[10px] font-bold rounded-full transition-colors flex items-center gap-1.5',
+              isToast ? 'text-white' : 'text-white/45 hover:text-white/80'
+            )}
+          >
+            <Sparkles className="w-3 h-3" /> 따뜻한 시선
+          </button>
+          <button
+            onClick={() => setIsToast(false)}
+            className={cn(
+              'relative z-10 px-3.5 py-1.5 text-[10px] font-bold rounded-full transition-colors flex items-center gap-1.5',
+              !isToast ? 'text-white' : 'text-white/45 hover:text-white/80'
+            )}
+          >
+            <Share2 className="w-3 h-3" /> 냉철한 시선
+          </button>
         </div>
       </motion.div>
 
-      {/* 통계 3개 */}
-      <div className="mt-5 grid grid-cols-3 gap-3">
-        {[
-          { value: epicPR.commentCount, label: '개의 토론', color: 'text-amber-400' },
-          { value: epicPR.reviewCount, label: '번의 리뷰', color: 'text-orange-400' },
-          { value: epicPR.engagement, label: '참여 지수', color: 'text-yellow-400' },
-        ].map((item, i) => (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
-            className="rounded-2xl border border-white/8 bg-white/4 p-4 text-center"
-          >
-            <div className={`text-3xl font-black ${item.color}`}>
-              <CountUp target={item.value} inView={inView} />
-            </div>
-            <p className="mt-1 text-[10px] text-white/40">{item.label}</p>
-          </motion.div>
-        ))}
-      </div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={inView ? { opacity: 1 } : {}}
-        transition={{ delay: 0.7 }}
-        className="mt-5 text-center text-sm text-white/35"
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={inView ? { opacity: 1, y: 0 } : {}}
+        transition={{ delay: 0.1, duration: 0.8, ease: 'easeOut' }}
+        className="relative overflow-hidden rounded-[2rem] border border-white/10 bg-[#08111d] p-6 shadow-[0_40px_120px_rgba(0,0,0,0.35)] md:p-8"
       >
-        이 PR이 올해 당신이 가장 치열하게 소통한 순간입니다.
-      </motion.p>
+        <div className="absolute inset-0 opacity-50 mix-blend-screen pointer-events-none overflow-hidden">
+          <motion.div
+            animate={{
+              background: isToast
+                ? 'radial-gradient(circle at 50% 120%, rgba(49,208,164,0.28) 0%, transparent 58%)'
+                : 'radial-gradient(circle at 50% 120%, rgba(239,68,68,0.28) 0%, transparent 58%)',
+            }}
+            transition={{ duration: 0.8 }}
+            className="absolute inset-0"
+          />
+          <motion.div
+            animate={{
+              rotate: 360,
+              borderRadius: ['40% 60% 70% 30% / 40% 50% 60% 50%', '60% 40% 30% 70% / 50% 60% 40% 50%', '40% 60% 70% 30% / 40% 50% 60% 50%']
+            }}
+            transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
+            className={cn(
+              'absolute -bottom-[82%] left-1/2 w-[180%] aspect-square -translate-x-1/2 blur-2xl',
+              isToast ? 'bg-[var(--dashboard-accent)]/15' : 'bg-red-500/15'
+            )}
+          />
+        </div>
+
+        <div className="relative z-10 flex flex-col gap-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="max-w-xl">
+              <p className="text-[10px] font-bold uppercase tracking-[0.28em] text-white/35">
+                Auto-generated self profile
+              </p>
+              <h3 className="mt-2 text-2xl font-black tracking-tight text-white">
+                {persona.title} as an empirical pattern
+              </h3>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {study.findings.map(finding => (
+                <button
+                  key={finding.id}
+                  type="button"
+                  onClick={() => setActiveFinding(finding.id)}
+                  className={cn(
+                    'rounded-full border px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.2em] transition-all',
+                    activeFinding === finding.id
+                      ? isToast
+                        ? 'border-[var(--dashboard-accent)] bg-[var(--dashboard-accent)]/16 text-white shadow-[0_0_24px_rgba(49,208,164,0.18)]'
+                        : 'border-red-400/60 bg-red-500/12 text-white shadow-[0_0_24px_rgba(239,68,68,0.18)]'
+                      : 'border-white/10 bg-white/5 text-white/50 hover:border-white/20 hover:text-white'
+                  )}
+                >
+                  {finding.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`${isToast ? 'warm' : 'cold'}-${activeFinding}`}
+              initial={{ opacity: 0, y: 18, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -18, scale: 0.98 }}
+              transition={{ duration: 0.45, ease: 'easeOut' }}
+              className="grid gap-4 lg:grid-cols-[1.3fr_0.9fr]"
+            >
+              <div className="rounded-[1.6rem] border border-white/8 bg-black/20 p-6 backdrop-blur-sm">
+                <div className={cn(
+                  'mb-4 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.24em]',
+                  isToast ? 'border-[var(--dashboard-accent)]/20 bg-[var(--dashboard-accent)]/8 text-[var(--dashboard-accent)]' : 'border-red-400/20 bg-red-500/8 text-red-300'
+                )}>
+                  <span>{activeFindingData.eyebrow}</span>
+                  <span className="h-1 w-1 rounded-full bg-current" />
+                  <span>{isToast ? 'Supportive read' : 'Critical read'}</span>
+                </div>
+
+                <h4 className="text-2xl font-black leading-tight text-white">
+                  {activeFindingData.title}
+                </h4>
+                <p className="mt-4 text-sm leading-8 text-white/90 sm:text-[15px]">
+                  {activeFinding === 'abstract'
+                    ? (isToast ? study.warmAbstract : study.coldAbstract)
+                    : activeFinding === 'signals'
+                      ? activeFindingData.body
+                      : `${activeFindingData.body} ${isToast ? persona.toastCopy : persona.roastCopy}`}
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                {study.evidenceCards.map(card => (
+                  <motion.div
+                    key={card.label}
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    transition={{ type: 'spring', stiffness: 220, damping: 18 }}
+                    className="rounded-[1.25rem] border border-white/8 bg-white/[0.04] p-4 backdrop-blur-sm"
+                  >
+                    <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/38">
+                      {card.label}
+                    </p>
+                    <div className="mt-2 flex items-end gap-2">
+                      <span className="text-3xl font-black text-white">{card.value}</span>
+                    </div>
+                    <p className="mt-2 text-[12px] leading-6 text-white/68">
+                      {card.description}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            {study.microNotes.map(note => (
+              <div key={note} className="rounded-[1.2rem] border border-white/6 bg-black/15 px-4 py-4 text-[11px] leading-5 text-white/65">
+                {note}
+              </div>
+            ))}
+          </div>
+        </div>
+      </motion.div>
     </div>
   )
 }
@@ -323,7 +559,6 @@ function ClockFace({ commitsByHour, accent }: { commitsByHour: number[]; accent:
       {/* 24 hour segments */}
       {commitsByHour.map((count, hour) => {
         const angle = (hour / 24) * 360 - 90
-        const rad = (angle * Math.PI) / 180
         const intensity = count / max
         if (intensity === 0) return null
 
@@ -470,8 +705,8 @@ function S4Soulmate({ viewer, soulmate, stats, inView }: {
 }) {
   const handleShare = async () => {
     const text = soulmate
-      ? `2025년 내 GitHub 소울메이트는 @${soulmate.login}! ${soulmate.reviewCount}번이나 내 코드를 봐줬다 🤝\n\ndevlog로 나만의 GitHub Wrapped 만들기`
-      : `2025년 내 GitHub 활동 Wrapped! 커밋 ${stats.commits}번, PR ${stats.prs}개 🚀`
+      ? `지난 12개월 내 GitHub 소울메이트는 @${soulmate.login}! ${soulmate.reviewCount}번이나 내 코드를 봐줬다 🤝\n\ndevlog로 나만의 GitHub Wrapped 만들기`
+      : `지난 12개월 내 GitHub 활동 Wrapped! 커밋 ${stats.commits}번, PR ${stats.prs}개 🚀`
     if (navigator.share) {
       await navigator.share({ text, url: window.location.href })
     } else {
@@ -542,7 +777,7 @@ function S4Soulmate({ viewer, soulmate, stats, inView }: {
               @{soulmate.login}이(가) 내 코드를 리뷰해 준 횟수
             </p>
             <p className="mt-3 text-xs text-rose-400/60">
-              "올해 내 PR에 가장 먼저 달려온 동료입니다 🎖️"
+              &ldquo;올해 내 PR에 가장 먼저 달려온 동료입니다 🎖️&rdquo;
             </p>
           </motion.div>
 
@@ -612,11 +847,12 @@ function S5Share({ viewer, stats, persona, personalData, onBack, inView }: {
   }
 
   function handleTwitter() {
-    const text = `🚀 나의 GitHub Wrapped\n\n${persona.title} @${viewer.login}\n커밋 ${stats.commits} · PR ${stats.prs} · 리뷰 ${stats.reviews}\n${personalData?.bioRhythmType === 'night-owl' ? '🦉 심야의 부엉이' : personalData?.bioRhythmType === 'morning-bird' ? '🌅 새벽 기상형' : ''}\n\ndevlog로 나만의 Wrapped 만들기`
+    const text = `🚀 지난 12개월 GitHub Wrapped\n\n${persona.title} @${viewer.login}\n커밋 ${stats.commits} · PR ${stats.prs} · 리뷰 ${stats.reviews}\n${personalData?.bioRhythmType === 'night-owl' ? '🦉 심야의 부엉이' : personalData?.bioRhythmType === 'morning-bird' ? '🌅 새벽 기상형' : ''}\n\ndevlog로 나만의 Wrapped 만들기`
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   const bioMeta = personalData ? BIO_RHYTHM_META[personalData.bioRhythmType] : null
+  const soulmateLine = personalData?.soulmate ? `소울메이트 @${personalData.soulmate.login}` : '혼자서도 강한 시즌'
 
   return (
     <div className="max-w-lg w-full text-center">
@@ -641,6 +877,9 @@ function S5Share({ viewer, stats, persona, personalData, onBack, inView }: {
           <p className="text-[9px] font-bold uppercase tracking-[0.4em] text-white/30 mb-3">devlog · GitHub Wrapped</p>
           <p className="text-2xl font-black text-white">@{viewer.login}</p>
           <p className="text-sm font-bold mt-0.5" style={{ color: 'var(--dashboard-accent)' }}>{persona.title}</p>
+          <p className="mt-3 max-w-sm text-xs leading-6 text-white/52">
+            {persona.toastCopy}
+          </p>
 
           <div className="mt-4 grid grid-cols-3 gap-2">
             {[
@@ -657,10 +896,7 @@ function S5Share({ viewer, stats, persona, personalData, onBack, inView }: {
 
           {bioMeta && (
             <p className="mt-4 text-xs text-white/40">
-              {bioMeta.emoji} {bioMeta.title}
-              {personalData?.soulmate && (
-                <> · 소울메이트 @{personalData.soulmate.login}</>
-              )}
+              {bioMeta.emoji} {bioMeta.title} · {soulmateLine}
             </p>
           )}
         </div>
@@ -704,11 +940,10 @@ function S5Share({ viewer, stats, persona, personalData, onBack, inView }: {
 
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────────────
 export function WrappedExperience({
-  viewer, stats, persona, dailyActivity, recentPRs, onBack,
+  viewer, stats, persona, dailyActivity, recentPRs, topRepos, onBack,
 }: WrappedExperienceProps) {
   const [personalData, setPersonalData] = useState<PersonalData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [activeSection, setActiveSection] = useState(0)
 
   const s1Ref = useRef<HTMLElement>(null)
   const s2Ref = useRef<HTMLElement>(null)
@@ -730,14 +965,13 @@ export function WrappedExperience({
       .finally(() => setLoading(false))
   }, [])
 
-  // 진행 표시기용 active section 추적
-  useEffect(() => {
+  const activeSection = useMemo(() => {
     const sections = [s1In, s2In, s3In, s4In, s5In]
     const last = sections.lastIndexOf(true)
-    if (last >= 0) setActiveSection(last)
+    return last >= 0 ? last : 0
   }, [s1In, s2In, s3In, s4In, s5In])
 
-  const SECTION_LABELS = ['캐릭터', '대장정', '생체리듬', '소울메이트', '공유']
+  const SECTION_LABELS = ['인트로', '페르소나', '생체리듬', '소울메이트', '공유']
 
   return (
     <div
@@ -799,11 +1033,19 @@ export function WrappedExperience({
         <S1Intro viewer={viewer} persona={persona} stats={stats} />
       </Section>
 
-      {/* ── S2: 올해의 대장정 ── */}
+      {/* ── S2: AI Code Persona ── */}
       <Section ref={s2Ref}
-        className="before:absolute before:inset-0 before:bg-gradient-to-b before:from-amber-950/20 before:to-transparent"
+        className="before:absolute before:inset-0 before:bg-gradient-to-b before:from-cyan-950/20 before:to-transparent"
       >
-        <S2EpicPR epicPR={personalData?.epicPR ?? null} inView={s2In} />
+        <S2PersonaStudy
+          persona={persona}
+          stats={stats}
+          dailyActivity={dailyActivity}
+          topRepos={topRepos}
+          recentPRs={recentPRs}
+          commitsByHour={personalData?.commitsByHour ?? null}
+          inView={s2In}
+        />
       </Section>
 
       {/* ── S3: 생체 리듬 ── */}
