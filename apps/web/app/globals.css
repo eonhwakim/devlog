@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@layer utilities {
+  .font-outline-2 {
+    color: transparent;
+    -webkit-text-stroke: 2px rgba(255, 255, 255, 0.4);
+  }
+}
+
 :root {
   --background: oklch(0.14 0.012 260);
   --foreground: oklch(0.97 0.005 250);
@@ -7,38 +14,38 @@
   --card-foreground: oklch(0.97 0.005 250);
   --popover: oklch(0.18 0.014 260);
   --popover-foreground: oklch(0.97 0.005 250);
-  --primary: oklch(0.78 0.18 155);
+  --primary: oklch(0.82 0.15 230);
   --primary-foreground: oklch(0.14 0.012 260);
   --secondary: oklch(0.24 0.018 260);
   --secondary-foreground: oklch(0.97 0.005 250);
   --muted: oklch(0.22 0.014 260);
   --muted-foreground: oklch(0.68 0.02 260);
-  --accent: oklch(0.78 0.18 155);
+  --accent: oklch(0.82 0.15 230);
   --accent-foreground: oklch(0.14 0.012 260);
   --destructive: oklch(0.62 0.24 25);
   --destructive-foreground: oklch(0.98 0.005 250);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.78 0.18 155 / 60%);
+  --ring: oklch(0.82 0.15 230 / 60%);
 
-  --chart-1: oklch(0.78 0.18 155);
-  --chart-2: oklch(0.72 0.15 200);
+  --chart-1: oklch(0.82 0.15 230);
+  --chart-2: oklch(0.7 0.18 260);
   --chart-3: oklch(0.7 0.18 280);
   --chart-4: oklch(0.78 0.16 90);
   --chart-5: oklch(0.7 0.2 350);
 
   --dashboard-bg:
-    radial-gradient(circle at 10% -10%, color-mix(in oklab, oklch(0.78 0.18 155) 16%, transparent), transparent 36%),
-    radial-gradient(circle at 90% 0%, color-mix(in oklab, oklch(0.7 0.18 280) 12%, transparent), transparent 34%),
-    linear-gradient(180deg, #090d16 0%, #07090e 52%, #101827 100%);
+    radial-gradient(circle at 10% -10%, color-mix(in oklab, oklch(0.82 0.15 230) 16%, transparent), transparent 36%),
+    radial-gradient(circle at 90% 0%, color-mix(in oklab, oklch(0.7 0.18 260) 12%, transparent), transparent 34%),
+    linear-gradient(180deg, #030508 0%, #07090e 52%, #0b1120 100%);
   --dashboard-panel: color-mix(in oklab, oklch(0.18 0.014 260) 76%, transparent);
   --dashboard-panel-border: oklch(1 0 0 / 12%);
   --dashboard-text: oklch(0.97 0.005 250);
   --dashboard-soft: oklch(0.86 0.018 250 / 0.78);
   --dashboard-muted: oklch(0.76 0.016 255 / 0.5);
-  --dashboard-accent: oklch(0.78 0.18 155);
-  --dashboard-accent-strong: #31d0a4;
-  --dashboard-accent-alt: oklch(0.72 0.15 200);
+  --dashboard-accent: oklch(0.82 0.15 230);
+  --dashboard-accent-strong: #22d3ee;
+  --dashboard-accent-alt: oklch(0.7 0.18 260);
   --dashboard-danger: #ff7d66;
   --dashboard-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
   --dashboard-shadow-soft: 0 10px 40px rgba(15, 23, 42, 0.2);
@@ -77,15 +84,15 @@
 }
 
 .dashboard-theme-toast {
-  --dashboard-bg: #07090e;
+  --dashboard-bg: #030508;
   --dashboard-panel: color-mix(in oklab, oklch(0.18 0.014 260) 76%, transparent);
   --dashboard-panel-border: oklch(1 0 0 / 12%);
   --dashboard-text: oklch(0.97 0.005 250);
   --dashboard-soft: oklch(0.86 0.018 250 / 0.78);
   --dashboard-muted: oklch(0.76 0.016 255 / 0.5);
-  --dashboard-accent: oklch(0.78 0.18 155);
-  --dashboard-accent-strong: #31d0a4;
-  --dashboard-accent-alt: oklch(0.72 0.15 200);
+  --dashboard-accent: oklch(0.82 0.15 230);
+  --dashboard-accent-strong: #22d3ee;
+  --dashboard-accent-alt: oklch(0.7 0.18 260);
 }
 
 .dashboard-theme-roast {
@@ -219,7 +226,7 @@ body {
 
 .rpg-card-shell {
   background:
-    radial-gradient(ellipse at 12% 20%, rgba(0, 210, 140, 0.65) 0%, transparent 44%),
+    radial-gradient(ellipse at 12% 20%, rgba(34, 211, 238, 0.65) 0%, transparent 44%),
     radial-gradient(ellipse at 88% 80%, rgba(255, 145, 40, 0.55) 0%, transparent 40%),
     radial-gradient(ellipse at 68% 22%, rgba(110, 72, 230, 0.5) 0%, transparent 44%),
     radial-gradient(ellipse at 22% 82%, rgba(0, 185, 235, 0.34) 0%, transparent 40%),

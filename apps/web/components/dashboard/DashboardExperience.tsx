@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { WrappedExperience } from './WrappedExperience'
+import { NeuralHero } from './NeuralHero'
 import {
   Activity,
   ArrowRight,
@@ -212,6 +213,7 @@ export function DashboardExperience({
   const [scoreMini, setScoreMini] = useState<ScoreMini | null>(null)
   const [commitsByHour, setCommitsByHour] = useState<number[] | null>(null)
   const [scrolled, setScrolled] = useState(false)
+  const [showPersonalSoon, setShowPersonalSoon] = useState(false)
 
   const techStack = useMemo(() => buildTechStack(topRepos), [topRepos])
   const stackTotal = techStack.reduce((s, i) => s + i.value, 0)
@@ -235,6 +237,16 @@ export function DashboardExperience({
   }, [])
 
   const themeClass = 'dashboard-theme-toast'
+
+  //임시로 막아둠
+  const handleModeChange = (nextMode: Mode) => {
+    if (nextMode === 'personal') {
+      setShowPersonalSoon(true)
+      window.setTimeout(() => setShowPersonalSoon(false), 1800)
+      return
+    }
+    setMode(nextMode)
+  }
 
   if (mode === 'personal') {
     return (
@@ -277,19 +289,27 @@ export function DashboardExperience({
             </div>
           </div>
 
-          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/20 p-1.5 shadow-inner">
+          <div className="relative flex items-center gap-1 rounded-full border border-white/10 bg-black/20 p-1.5 shadow-inner">
             {(['toast', 'personal'] as const).map(m => (
-              <button key={m} type="button" onClick={() => setMode(m)}
+              <button key={m} type="button" onClick={() => handleModeChange(m)}
                 className={cn(
                   'flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold transition-all duration-300',
                   mode === m 
                     ? 'bg-[var(--dashboard-accent)] text-black shadow-[0_0_20px_var(--dashboard-accent)] scale-105' 
-                    : 'text-[var(--dashboard-soft)] hover:text-white hover:bg-white/5',
+                    : m === 'personal'
+                      ? 'text-[var(--dashboard-soft)]/60 hover:bg-white/5 cursor-not-allowed'
+                      : 'text-[var(--dashboard-soft)] hover:text-white hover:bg-white/5',
                 )}>
                 {m === 'toast' ? <Sparkles className="h-4 w-4" /> : <Flame className="h-4 w-4" />}
-                {m === 'toast' ? 'Dashboard' : 'Personal ✨'}
+                {m === 'toast' ? 'Dashboard' : 'Personal'}
               </button>
             ))}
+            {showPersonalSoon && (
+              <div className="absolute left-1/2 top-full z-20 mt-3 -translate-x-1/2 whitespace-nowrap rounded-2xl border border-white/10 bg-[#0f172a]/95 px-4 py-2 text-xs font-semibold text-white shadow-2xl backdrop-blur-md">
+                To be continue...
+                <div className="absolute left-1/2 top-0 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rotate-45 border-l border-t border-white/10 bg-[#0f172a]/95" />
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-4">
@@ -306,39 +326,27 @@ export function DashboardExperience({
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-6 pb-24">
+      {/* ── HERO (Full Width, Overwhelming) ── */}
+      <motion.section
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5 }}
+        className="relative w-full z-0"
+      >
+        <NeuralHero
+          dailyActivity={dailyActivity}
+          stats={stats}
+          persona={persona}
+          viewer={viewer}
+        />
+      </motion.section>
+
+      <main className="relative z-10 mx-auto max-w-6xl px-6 pb-24 mt-12 md:mt-24">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           animate="visible"
         >
-          {/* ── HERO ── */}
-          <motion.section variants={itemVariants} className="pt-20 pb-12 flex flex-col items-start text-left">
-            <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-[var(--dashboard-muted)] mb-4"
-            >
-              <Sparkles className="h-4 w-4 text-[var(--dashboard-accent)]" />
-              <span>GitHub</span>
-              <span>·</span>
-              <span>Verified</span>
-              <span>·</span>
-              <span>Last 12 months</span>
-            </motion.div>
-            
-            <h2 className="text-6xl md:text-[5.5rem] lg:text-[6.5rem] font-black tracking-tighter text-white leading-[1.05] mb-4">
-              Your last 12 months were a<br />
-              <span className="text-[var(--dashboard-accent)] filter drop-shadow-[0_0_30px_rgba(49,208,164,0.3)]">
-                masterpiece.
-              </span>
-            </h2>
-            <p className="text-lg md:text-xl font-medium text-[var(--dashboard-soft)] max-w-3xl leading-relaxed">
-              {persona.headline}
-            </p>
-          </motion.section>
-
           {/* ── TOP GRID (Match Image) ── */}
           <motion.section variants={itemVariants} className="pb-16 grid grid-cols-1 lg:grid-cols-12 gap-6">
           <InsightPanel
