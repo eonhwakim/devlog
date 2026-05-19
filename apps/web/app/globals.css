@@ -1,55 +1,103 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --dashboard-bg: #eef3ff;
-  --dashboard-panel: rgba(255, 255, 255, 0.52);
-  --dashboard-panel-border: rgba(255, 255, 255, 0.3);
-  --dashboard-text: #11203c;
-  --dashboard-soft: rgba(17, 32, 60, 0.72);
-  --dashboard-muted: rgba(17, 32, 60, 0.48);
-  --dashboard-accent: #4f7cff;
+  --background: oklch(0.14 0.012 260);
+  --foreground: oklch(0.97 0.005 250);
+  --card: oklch(0.18 0.014 260);
+  --card-foreground: oklch(0.97 0.005 250);
+  --popover: oklch(0.18 0.014 260);
+  --popover-foreground: oklch(0.97 0.005 250);
+  --primary: oklch(0.78 0.18 155);
+  --primary-foreground: oklch(0.14 0.012 260);
+  --secondary: oklch(0.24 0.018 260);
+  --secondary-foreground: oklch(0.97 0.005 250);
+  --muted: oklch(0.22 0.014 260);
+  --muted-foreground: oklch(0.68 0.02 260);
+  --accent: oklch(0.78 0.18 155);
+  --accent-foreground: oklch(0.14 0.012 260);
+  --destructive: oklch(0.62 0.24 25);
+  --destructive-foreground: oklch(0.98 0.005 250);
+  --border: oklch(1 0 0 / 8%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.78 0.18 155 / 60%);
+
+  --chart-1: oklch(0.78 0.18 155);
+  --chart-2: oklch(0.72 0.15 200);
+  --chart-3: oklch(0.7 0.18 280);
+  --chart-4: oklch(0.78 0.16 90);
+  --chart-5: oklch(0.7 0.2 350);
+
+  --dashboard-bg:
+    radial-gradient(circle at 10% -10%, color-mix(in oklab, oklch(0.78 0.18 155) 16%, transparent), transparent 36%),
+    radial-gradient(circle at 90% 0%, color-mix(in oklab, oklch(0.7 0.18 280) 12%, transparent), transparent 34%),
+    linear-gradient(180deg, #090d16 0%, #07090e 52%, #101827 100%);
+  --dashboard-panel: color-mix(in oklab, oklch(0.18 0.014 260) 76%, transparent);
+  --dashboard-panel-border: oklch(1 0 0 / 12%);
+  --dashboard-text: oklch(0.97 0.005 250);
+  --dashboard-soft: oklch(0.86 0.018 250 / 0.78);
+  --dashboard-muted: oklch(0.76 0.016 255 / 0.5);
+  --dashboard-accent: oklch(0.78 0.18 155);
+  --dashboard-accent-strong: #31d0a4;
+  --dashboard-accent-alt: oklch(0.72 0.15 200);
+  --dashboard-danger: #ff7d66;
+  --dashboard-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+  --dashboard-shadow-soft: 0 10px 40px rgba(15, 23, 42, 0.2);
+  --dashboard-grid: rgba(255, 255, 255, 0.08);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
   --font-sans: "SF Pro Display", "Inter", "Segoe UI", sans-serif;
   --font-mono: "SFMono-Regular", "SF Mono", "Menlo", monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: oklch(0.14 0.012 260);
+    --foreground: oklch(0.97 0.005 250);
   }
 }
-/* #07090e */
+
 .dashboard-theme-toast {
-  --dashboard-bg:
-    /* radial-gradient(circle at top left, rgba(58, 214, 174, 0.2), transparent 34%), */
-    /* radial-gradient(circle at 82% 14%, rgba(94, 130, 255, 0.18), transparent 26%), */
-    linear-gradient(180deg, #090d16 0%, #07090e 52%, #101827 100%);
-  --dashboard-panel: rgba(255, 255, 255, 0.06);
-  --dashboard-panel-border: rgba(255, 255, 255, 0.12);
-  --dashboard-text: #eff7ff;
-  --dashboard-soft: rgba(239, 247, 255, 0.74);
-  --dashboard-muted: rgba(239, 247, 255, 0.46);
-  --dashboard-accent: #31d0a4;
+  --dashboard-bg: #07090e;
+  --dashboard-panel: color-mix(in oklab, oklch(0.18 0.014 260) 76%, transparent);
+  --dashboard-panel-border: oklch(1 0 0 / 12%);
+  --dashboard-text: oklch(0.97 0.005 250);
+  --dashboard-soft: oklch(0.86 0.018 250 / 0.78);
+  --dashboard-muted: oklch(0.76 0.016 255 / 0.5);
+  --dashboard-accent: oklch(0.78 0.18 155);
+  --dashboard-accent-strong: #31d0a4;
+  --dashboard-accent-alt: oklch(0.72 0.15 200);
 }
 
 .dashboard-theme-roast {
-  --dashboard-bg:
-    radial-gradient(circle at top left, rgba(255, 91, 91, 0.24), transparent 28%),
-    radial-gradient(circle at 86% 12%, rgba(255, 135, 89, 0.18), transparent 24%),
-    linear-gradient(180deg, #11080d 0%, #07090e 45%, #260f16 100%);
-  --dashboard-panel: rgba(255, 255, 255, 0.06);
-  --dashboard-panel-border: rgba(255, 255, 255, 0.1);
+  --dashboard-bg: #07090e;
+  --dashboard-panel: color-mix(in oklab, oklch(0.18 0.014 20) 72%, transparent);
+  --dashboard-panel-border: oklch(1 0 0 / 10%);
   --dashboard-text: #fff3f1;
   --dashboard-soft: rgba(255, 243, 241, 0.72);
   --dashboard-muted: rgba(255, 243, 241, 0.48);
   --dashboard-accent: #ff7d66;
+  --dashboard-accent-strong: #ff7d66;
+  --dashboard-accent-alt: #ff936f;
 }
 
 html {
@@ -64,7 +112,7 @@ body {
 
 .dashboard-shell {
   position: relative;
-  overflow: hidden;
+  overflow: clip;
   background: var(--dashboard-bg);
   color: var(--dashboard-text);
 }
@@ -76,8 +124,8 @@ body {
   opacity: 0.26;
   mix-blend-mode: soft-light;
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+    linear-gradient(var(--dashboard-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--dashboard-grid) 1px, transparent 1px);
   background-size: 120px 120px;
   mask-image: radial-gradient(circle at center, black 48%, transparent 100%);
 }
@@ -94,7 +142,7 @@ body {
   top: 8rem;
   height: 18rem;
   width: 18rem;
-  background: color-mix(in srgb, var(--dashboard-accent) 72%, transparent);
+  background: color-mix(in oklab, var(--dashboard-accent) 72%, transparent);
 }
 
 .dashboard-orb-right {
@@ -102,7 +150,7 @@ body {
   top: 16rem;
   height: 22rem;
   width: 22rem;
-  background: rgba(82, 120, 255, 0.26);
+  background: color-mix(in oklab, var(--dashboard-accent-alt) 48%, transparent);
 }
 
 .dashboard-flare {
@@ -124,18 +172,18 @@ body {
   backdrop-filter: blur(24px);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 24px 70px rgba(15, 23, 42, 0.12);
+    var(--dashboard-shadow-soft);
 }
 
 .feature-card {
   background:
     linear-gradient(180deg, rgba(21, 27, 37, 0.96) 0%, rgba(13, 18, 27, 0.98) 100%);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: oklch(1 0 0 / 8%);
   box-shadow:
-    inset 1px 0 0 rgba(56, 227, 159, 0.85),
-    inset 2px 0 18px rgba(56, 227, 159, 0.12),
+    inset 1px 0 0 color-mix(in oklab, var(--dashboard-accent) 88%, white 8%),
+    inset 2px 0 18px color-mix(in oklab, var(--dashboard-accent) 16%, transparent),
     inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 24px 70px rgba(0, 0, 0, 0.28);
+    var(--dashboard-shadow);
 }
 
 .feature-card::before {
@@ -144,8 +192,8 @@ body {
   inset: 18px auto 18px -1px;
   width: 2px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(56, 227, 159, 0.3), rgba(56, 227, 159, 1), rgba(56, 227, 159, 0.24));
-  box-shadow: 0 0 18px rgba(56, 227, 159, 0.55);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--dashboard-accent) 30%, transparent), var(--dashboard-accent-strong), color-mix(in oklab, var(--dashboard-accent) 24%, transparent));
+  box-shadow: 0 0 18px color-mix(in oklab, var(--dashboard-accent) 55%, transparent);
 }
 
 .glow-panel::after {
@@ -154,7 +202,7 @@ body {
   inset: 1px;
   border-radius: 27px;
   pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--dashboard-accent) 35%, transparent);
+  border: 1px solid color-mix(in oklab, var(--dashboard-accent) 35%, transparent);
   opacity: 0.6;
 }
 
@@ -164,7 +212,7 @@ body {
   height: 18rem;
   width: 18rem;
   background:
-    radial-gradient(circle, color-mix(in srgb, var(--dashboard-accent) 24%, white 16%) 0%, transparent 64%);
+    radial-gradient(circle, color-mix(in oklab, var(--dashboard-accent) 24%, white 16%) 0%, transparent 64%);
   filter: blur(18px);
   opacity: 0.9;
 }
@@ -225,7 +273,7 @@ body {
 }
 
 .timeline-line {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), color-mix(in srgb, var(--dashboard-accent) 72%, transparent), rgba(255, 255, 255, 0.08));
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), color-mix(in oklab, var(--dashboard-accent) 72%, transparent), rgba(255, 255, 255, 0.08));
 }
 
 .timeline-node {

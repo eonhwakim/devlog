@@ -5,17 +5,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { WrappedExperience } from './WrappedExperience'
 import {
-  LucideIcon,
   Activity,
   ArrowRight,
-  Award,
-  Calendar,
   Clock,
   Coffee,
   Flame,
-  Gem,
   GitPullRequest,
-  Globe,
   MessageSquareMore,
   Moon,
   Share2,
@@ -24,7 +19,6 @@ import {
   TrendingUp,
   Trophy,
   Wallet,
-  Zap,
 } from 'lucide-react'
 import {
   Bar,
@@ -90,7 +84,13 @@ function getGrade(score: number) {
   return GRADE_MAP.find(g => score >= g.min) ?? GRADE_MAP[GRADE_MAP.length - 1]
 }
 
-const STACK_COLORS = ['#31d0a4', '#3b82f6', '#a855f7', '#f59e0b', '#ec4899']
+const STACK_COLORS = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+]
 const TOOLTIP_STYLE = {
   borderRadius: 16,
   border: '1px solid rgba(255,255,255,0.1)',
@@ -114,48 +114,11 @@ const itemVariants = {
 }
 
 
-// ── Insight Panel helpers ──────────────────────────────────────────────────
-interface Achievement {
-  icon: LucideIcon; title: string; desc: string; unlocked: boolean; hint: string
-}
-
-function computeStreak(days: Array<{ count: number }>) {
-  let max = 0, cur = 0
-  for (const d of days) { if (d.count > 0) { cur++; max = Math.max(max, cur) } else cur = 0 }
-  return max
-}
-
-function buildAchievements(
-  stats: { commits: number; prs: number; reviews: number; issues: number },
-  streak: number, activeDays: number, uniqueLangs: number, hrs: number[] | null,
-): Achievement[] {
-  const tot = hrs?.reduce((a, b) => a + b, 0) ?? 0
-  const night = hrs ? hrs.slice(0, 5).reduce((a, b) => a + b, 0) + hrs[23] : 0
-  const nightPct = tot > 0 ? Math.round((night / tot) * 100) : 0
-  return [
-    { icon: Gem, title: '1K 커밋', desc: `${stats.commits.toLocaleString()} 커밋`, unlocked: stats.commits >= 1000, hint: `${Math.max(0, 1000 - stats.commits)}개 남음` },
-    { icon: Flame, title: '7일 연속', desc: `스트릭 ${streak}일`, unlocked: streak >= 7, hint: `현재 ${streak}일` },
-    { icon: Activity, title: '마라톤 코더', desc: '30일 연속 달성', unlocked: streak >= 30, hint: `${streak}/30일` },
-    { icon: Zap, title: 'PR 파워유저', desc: `PR ${stats.prs}개`, unlocked: stats.prs >= 15, hint: `${Math.max(0, 15 - stats.prs)}개 더` },
-    { icon: Award, title: '리뷰 MVP', desc: `리뷰 ${stats.reviews}회`, unlocked: stats.reviews >= 20, hint: `${Math.max(0, 20 - stats.reviews)}회 더` },
-    { icon: Globe, title: '폴리글랏', desc: `${uniqueLangs}개 언어`, unlocked: uniqueLangs >= 3, hint: `${uniqueLangs}/3개` },
-    { icon: Moon, title: '심야 부엉이', desc: `심야 ${nightPct}%`, unlocked: nightPct > 20, hint: hrs ? `${nightPct}%/20%` : '분석 중' },
-    { icon: Calendar, title: '성실 개발자', desc: `${activeDays}일 활동`, unlocked: activeDays >= 30, hint: `${activeDays}/30일` },
-  ]
-}
-
 function InsightPanel({
-  stats, topRepos, commitsByHour, streak, activeDays,
+  commitsByHour
 }: {
-  stats: DashboardExperienceProps['stats']
-  topRepos: DashboardExperienceProps['topRepos']
   commitsByHour: number[] | null
-  streak: number
-  activeDays: number
 }) {
-  const uniqueLangs = useMemo(() => new Set(topRepos.map(r => r.language).filter(Boolean)).size, [topRepos])
-  const achievements = useMemo(() => buildAchievements(stats, streak, activeDays, uniqueLangs, commitsByHour), [stats, streak, activeDays, uniqueLangs, commitsByHour])
-  
   const peakHour = commitsByHour ? commitsByHour.indexOf(Math.max(...commitsByHour)) : null
   const PeakIcon = peakHour === null ? Clock : peakHour >= 22 || peakHour <= 4 ? Moon : peakHour <= 9 ? Sun : peakHour <= 14 ? Coffee : Sun
 
@@ -236,52 +199,6 @@ function InsightPanel({
           </div>
         </div>
 
-        {/* ── 2. 뱃지 (Achievements) ── */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="text-[11px] font-bold uppercase tracking-widest text-[var(--dashboard-muted)] flex items-center gap-2">
-              <Award className="w-3.5 h-3.5" /> Achievements
-            </h4>
-            <span className="text-[10px] font-medium text-[var(--dashboard-accent)]">
-              {achievements.filter(a => a.unlocked).length}/{achievements.length} 획득
-            </span>
-          </div>
-          <div className="grid grid-cols-4 gap-2">
-            {achievements.map((a, i) => {
-              const Icon = a.icon;
-              return (
-                <motion.div key={a.title}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.05, duration: 0.3 }}
-                  className="group relative"
-                >
-                  <div className={cn(
-                    'flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl border transition-all duration-300 aspect-square',
-                    a.unlocked
-                      ? 'border-[var(--dashboard-accent)]/20 bg-gradient-to-b from-[var(--dashboard-accent)]/10 to-transparent hover:border-[var(--dashboard-accent)]/40 hover:bg-[var(--dashboard-accent)]/15 shadow-[0_0_15px_rgba(49,208,164,0.05)]'
-                      : 'border-white/5 bg-black/20 opacity-60 grayscale hover:opacity-80'
-                  )}>
-                    <Icon className={cn("w-6 h-6", a.unlocked ? "text-[var(--dashboard-accent)]" : "text-white/40")} strokeWidth={a.unlocked ? 2 : 1.5} />
-                    <span className={cn('text-[9px] font-bold tracking-tight text-center leading-tight', a.unlocked ? 'text-white' : 'text-white/50')}>
-                      {a.title}
-                    </span>
-                  </div>
-                  
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-30">
-                    <div className="bg-[#0f172a] border border-white/10 rounded-xl p-2.5 shadow-xl flex flex-col gap-1 items-center text-center">
-                      <span className="text-[10px] font-bold text-white">{a.title}</span>
-                      <span className="text-[9px] text-[var(--dashboard-muted)]">{a.unlocked ? a.desc : a.hint}</span>
-                    </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </div>
-        </div>
-
       </div>
     </div>
   )
@@ -294,11 +211,10 @@ export function DashboardExperience({
   const [mode, setMode] = useState<Mode>('toast')
   const [scoreMini, setScoreMini] = useState<ScoreMini | null>(null)
   const [commitsByHour, setCommitsByHour] = useState<number[] | null>(null)
+  const [scrolled, setScrolled] = useState(false)
 
   const techStack = useMemo(() => buildTechStack(topRepos), [topRepos])
   const stackTotal = techStack.reduce((s, i) => s + i.value, 0)
-  const streak = useMemo(() => computeStreak(dailyActivity), [dailyActivity])
-  const activeDays = useMemo(() => dailyActivity.filter(d => d.count > 0).length, [dailyActivity])
 
   useEffect(() => {
     fetch('/api/github/score?weeks=4')
@@ -312,6 +228,12 @@ export function DashboardExperience({
       .catch(() => {})
   }, [])
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   const themeClass = 'dashboard-theme-toast'
 
   if (mode === 'personal') {
@@ -322,6 +244,7 @@ export function DashboardExperience({
         persona={persona}
         dailyActivity={dailyActivity}
         recentPRs={recentPRs}
+        topRepos={topRepos}
         onBack={() => setMode('toast')}
       />
     )
@@ -332,12 +255,14 @@ export function DashboardExperience({
   return (
     <div className={cn('dashboard-shell min-h-screen font-sans', themeClass)}>
       <div className="dashboard-noise" />
-      <div className="dashboard-orb dashboard-orb-left opacity-50" />
-      <div className="dashboard-orb dashboard-orb-right opacity-50" />
-      <div className="absolute top-0 left-0 right-0 h-[500px] bg-gradient-to-b from-[var(--dashboard-accent)]/10 to-transparent pointer-events-none" />
 
       {/* ── NAV ── */}
-      <header className="relative z-50 border-b border-white/5 bg-black/10 backdrop-blur-xl px-6 py-5">
+      <header className={cn(
+        'sticky top-0 z-50 px-6 py-5 transition-all duration-300',
+        scrolled
+          ? 'bg-black/40 backdrop-blur-2xl shadow-[0_1px_0_0_rgba(255,255,255,0.06)]'
+          : 'bg-transparent backdrop-blur-none',
+      )}>
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-white/20 to-white/5 border border-white/10 shadow-lg">
@@ -400,11 +325,11 @@ export function DashboardExperience({
               <span>·</span>
               <span>Verified</span>
               <span>·</span>
-              <span>2025</span>
+              <span>Last 12 months</span>
             </motion.div>
             
             <h2 className="text-6xl md:text-[5.5rem] lg:text-[6.5rem] font-black tracking-tighter text-white leading-[1.05] mb-4">
-              Your year was a<br />
+              Your last 12 months were a<br />
               <span className="text-[var(--dashboard-accent)] filter drop-shadow-[0_0_30px_rgba(49,208,164,0.3)]">
                 masterpiece.
               </span>
@@ -417,11 +342,7 @@ export function DashboardExperience({
           {/* ── TOP GRID (Match Image) ── */}
           <motion.section variants={itemVariants} className="pb-16 grid grid-cols-1 lg:grid-cols-12 gap-6">
           <InsightPanel
-            stats={stats}
-            topRepos={topRepos}
             commitsByHour={commitsByHour}
-            streak={streak}
-            activeDays={activeDays}
           />
 
             {/* RIGHT: Stacked Cards */}
@@ -437,7 +358,7 @@ export function DashboardExperience({
                   <span className="text-[10px] font-semibold text-[var(--dashboard-muted)] uppercase tracking-wider">% of commits</span>
                 </div>
                 
-                <h4 className="text-2xl md:text-3xl font-bold text-white mb-6 relative z-10">Languages of 2025</h4>
+                <h4 className="text-2xl md:text-3xl font-bold text-white mb-6 relative z-10">Languages of this period</h4>
                 
                 <div className="flex items-center gap-8 relative z-10">
                   <div className="h-32 w-32 shrink-0">
@@ -701,7 +622,7 @@ export function DashboardExperience({
           {/* ── FOOTER ── */}
           <motion.footer variants={itemVariants} className="flex flex-col gap-4 rounded-3xl border border-white/5 bg-black/20 backdrop-blur-md px-8 py-6 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-base font-medium text-[var(--dashboard-soft)]">
-              총 <span className="font-bold text-white">{(stats.commits + stats.prs + stats.reviews).toLocaleString()}</span>개의 기여 · devlog 2025
+              총 <span className="font-bold text-white">{(stats.commits + stats.prs + stats.reviews).toLocaleString()}</span>개의 기여 · 지난 12개월
             </p>
             <p className="text-sm font-bold tracking-wider text-[var(--dashboard-muted)] uppercase">{periodLabel}</p>
           </motion.footer>
