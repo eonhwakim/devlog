@@ -1,0 +1,15 @@
+node_modules
+.next
+out
+build
+dist
+coverage
+pnpm-lock.yaml
+*.min.js
+*.min.css
+venv
+__pycache__
+*.py
+*.svg
+next-env.d.ts
+tsconfig.tsbuildinfo
