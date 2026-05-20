@@ -46,7 +46,7 @@ export function NeuralHero(props: NeuralHeroProps) {
         <motion.div
           animate={{ y: [0, -14, 0], rotate: [0, 2, 0, -2, 0], scale: [1, 1.02, 1] }}
           transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-          className="relative h-[420px] w-[420px] md:h-[520px] md:w-[520px] lg:h-[620px] lg:w-[620px]"
+          className="relative h-[420px] w-[420px] md:h-[520px] md:w-[520px] lg:h-[580px] lg:w-[560px]"
         >
           <svg
             viewBox="0 0 314 308"
