@@ -41,7 +41,7 @@ export function NeuralHero(props: NeuralHeroProps) {
 
 
   return (
-    <div className="flex items-center justify-center pointer-events-none mix-blend-screen">
+    <div className="flex w-full items-center justify-center pointer-events-none mix-blend-screen">
       <div className="relative flex items-center justify-center">
         <motion.div
           animate={{ y: [0, -14, 0], rotate: [0, 2, 0, -2, 0], scale: [1, 1.02, 1] }}
@@ -49,7 +49,7 @@ export function NeuralHero(props: NeuralHeroProps) {
           className="relative h-[420px] w-[420px] md:h-[520px] md:w-[520px] lg:h-[620px] lg:w-[620px]"
         >
           <svg
-            viewBox="0 0 640 640"
+            viewBox="0 0 314 308"
             className="absolute inset-0 h-full w-full overflow-visible"
             fill="none"
             aria-hidden="true"

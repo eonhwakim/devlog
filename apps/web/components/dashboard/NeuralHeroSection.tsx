@@ -37,7 +37,7 @@ export function NeuralHeroSection({ dailyActivity, stats, persona, viewer }: Neu
         </motion.div>
       </div>
 
-      <div className="flex items-center justify-center">
+      <div className="flex w-full items-center justify-center">
         <NeuralHero
           dailyActivity={dailyActivity}
           stats={stats}
