@@ -78,19 +78,33 @@ export default async function Home() {
               <div className="group relative overflow-hidden rounded-[2rem] border border-cyan-300/20 bg-cyan-950/20 p-6 backdrop-blur-md transition-all hover:bg-cyan-900/30">
                 <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-400">01 / 나만의 대시보드</p>
-                <p className="mt-2 text-lg font-bold text-white">뉴럴 분석</p>
+                <p className="mt-2 text-lg font-bold text-white">12개월 활동 한눈에</p>
                 <p className="mt-1 text-sm leading-relaxed text-cyan-100/60">
-                  커밋과 PR 데이터를 바탕으로 코딩 패턴이 담긴 인터랙티브 뉴럴 네트워크를 생성합니다.
+                  365일 커밋이 뉴런처럼 발화하는 Neural Map, 시간대별 골든 타임, 언어 분포, AI 협업 스코어까지. 내 GitHub가 어떻게 살아있었는지 보여줍니다.
                 </p>
+                <ul className="mt-3 space-y-1">
+                  {['Neural Activity Map — 마우스로 반응하는 뉴럴 시각화', '24시간 Activity Pattern · 언어 비중 분석', 'AI 협업 스코어 · 연봉 협상 레포트'].map(item => (
+                    <li key={item} className="flex items-start gap-1.5 text-[11px] text-cyan-200/50">
+                      <span className="mt-0.5 text-cyan-400/60">·</span>{item}
+                    </li>
+                  ))}
+                </ul>
               </div>
 
               <div className="group relative overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-md transition-all hover:bg-white/10">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/50">02 / 퍼스널 페이지</p>
-                <p className="mt-2 text-lg font-bold text-white">퍼블릭 랩업</p>
+                <p className="mt-2 text-lg font-bold text-white">나만의 GitHub Wrapped</p>
                 <p className="mt-1 text-sm leading-relaxed text-white/50">
-                  분석된 개발자 페르소나, 최고의 순간, 임팩트 지표를 전 세계와 공유하세요.
+                  5개 씬을 스크롤하며 펼쳐지는 몰입형 경험. Epic PR 스토리부터 생체리듬 분석, 코드 소울메이트까지 — 뉴런이 반응하는 인터랙티브 공간입니다.
                 </p>
+                <ul className="mt-3 space-y-1">
+                  {['Epic PR — 올해 가장 뜨거웠던 PR 한 편', '생체리듬 — 나는 새벽형인가, 저녁형인가', '소울메이트 — 가장 많이 내 코드를 봐준 동료'].map(item => (
+                    <li key={item} className="flex items-start gap-1.5 text-[11px] text-white/35">
+                      <span className="mt-0.5 text-white/25">·</span>{item}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
