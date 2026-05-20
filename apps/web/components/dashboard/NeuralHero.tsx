@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 
 interface NeuralHeroProps {
@@ -26,11 +25,8 @@ const layerPalette = [
 const PATH_CENTER_X = 157
 const PATH_CENTER_Y = 154
 
-export function NeuralHero({ dailyActivity, stats, persona, viewer }: NeuralHeroProps) {
-  const activeDays = useMemo(
-    () => dailyActivity.reduce((total, day) => total + (day.count > 0 ? 1 : 0), 0),
-    [dailyActivity],
-  )
+export function NeuralHero(props: NeuralHeroProps) {
+  void props
 
   const layers = Array.from({ length: 14 }, (_, index) => ({
     id: index,
@@ -43,102 +39,54 @@ export function NeuralHero({ dailyActivity, stats, persona, viewer }: NeuralHero
     duration: 10 + index * 0.7,
   }))
 
-  const displayName = viewer.name ?? viewer.login
 
   return (
-    <section className="relative flex min-h-screen w-full items-center justify-center overflow-hidden bg-black px-6 py-12">
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(49,122,255,0.18),transparent_26%),radial-gradient(circle_at_34%_36%,rgba(130,225,255,0.08),transparent_20%),radial-gradient(circle_at_66%_64%,rgba(45,86,255,0.12),transparent_24%)]" />
-
-      <div className="relative z-10 flex w-full max-w-7xl flex-col items-center justify-center gap-8">
+    <div className="flex items-center justify-center pointer-events-none mix-blend-screen">
+      <div className="relative flex items-center justify-center">
         <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, ease: 'easeOut' }}
-          className="flex flex-col items-center gap-3 text-center"
+          animate={{ y: [0, -14, 0], rotate: [0, 2, 0, -2, 0], scale: [1, 1.02, 1] }}
+          transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
+          className="relative h-[420px] w-[420px] md:h-[520px] md:w-[520px] lg:h-[620px] lg:w-[620px]"
         >
-          <span className="rounded-full border border-cyan-300/20 bg-cyan-300/8 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-[0.36em] text-cyan-100/82">
-            Neural Signature
-          </span>
-          <h2 className="max-w-4xl text-3xl font-black tracking-[-0.05em] text-white md:text-5xl">
-            {persona.title}
-          </h2>
-          <p className="max-w-2xl text-sm leading-6 text-cyan-100/62 md:text-base">
-            {displayName}의 활동을 브레인 실루엣 위 네온 라인으로 재구성했습니다.
-          </p>
-        </motion.div>
-
-        <div className="relative flex items-center justify-center">
-          <motion.div
-            animate={{ y: [0, -14, 0], rotate: [0, 2, 0, -2, 0], scale: [1, 1.02, 1] }}
-            transition={{ duration: 10, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-            className="relative h-[420px] w-[420px] md:h-[520px] md:w-[520px] lg:h-[620px] lg:w-[620px]"
+          <svg
+            viewBox="0 0 640 640"
+            className="absolute inset-0 h-full w-full overflow-visible"
+            fill="none"
+            aria-hidden="true"
           >
-            <div className="absolute inset-[16%] rounded-full bg-cyan-300/10 blur-[90px]" />
-            <div className="absolute inset-[24%] rounded-full bg-blue-500/16 blur-[110px]" />
+            {layers.map(layer => (
+              <motion.path
+                key={layer.id}
+                d={BRAIN_PATH}
+                stroke={layer.color}
+                strokeWidth={1.65}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                transform={`translate(${layer.x} ${layer.y}) scale(${layer.scale}) rotate(${layer.rotate} ${PATH_CENTER_X} ${PATH_CENTER_Y})`}
+                style={{
+                  opacity: layer.opacity,
+                  filter: 'drop-shadow(0 0 8px rgba(91,224,255,0.18))',
+                }}
+                animate={{
+                  opacity: [layer.opacity * 0.72, layer.opacity, layer.opacity * 0.72],
+                  rotate: [layer.rotate, layer.rotate + 1.8, layer.rotate - 1.4, layer.rotate],
+                }}
+                transition={{
+                  duration: layer.duration,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: 'easeInOut',
+                }}
+              />
+            ))}
+          </svg>
 
-            <svg
-              viewBox="0 0 640 640"
-              className="absolute inset-0 h-full w-full overflow-visible"
-              fill="none"
-              aria-hidden="true"
-            >
-              {layers.map(layer => (
-                <motion.path
-                  key={layer.id}
-                  d={BRAIN_PATH}
-                  stroke={layer.color}
-                  strokeWidth={1.65}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  transform={`translate(${layer.x} ${layer.y}) scale(${layer.scale}) rotate(${layer.rotate} ${PATH_CENTER_X} ${PATH_CENTER_Y})`}
-                  style={{
-                    opacity: layer.opacity,
-                    filter: 'drop-shadow(0 0 8px rgba(91,224,255,0.18))',
-                  }}
-                  animate={{
-                    opacity: [layer.opacity * 0.72, layer.opacity, layer.opacity * 0.72],
-                    rotate: [layer.rotate, layer.rotate + 1.8, layer.rotate - 1.4, layer.rotate],
-                  }}
-                  transition={{
-                    duration: layer.duration,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: 'easeInOut',
-                  }}
-                />
-              ))}
-            </svg>
-
-            <motion.div
-              animate={{ opacity: [0.26, 0.72, 0.26], scale: [0.92, 1.03, 0.92] }}
-              transition={{ duration: 5.2, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
-              className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/[0.02] blur-[1px]"
-            />
-          </motion.div>
-        </div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.9, delay: 0.25, ease: 'easeOut' }}
-          className="flex flex-wrap items-center justify-center gap-3"
-        >
-          {[
-            { label: 'Commits', value: stats.commits.toLocaleString() },
-            { label: 'PRs', value: stats.prs.toLocaleString() },
-            { label: 'Active Days', value: activeDays.toLocaleString() },
-          ].map(item => (
-            <div
-              key={item.label}
-              className="rounded-full border border-white/10 bg-white/4 px-5 py-2.5 backdrop-blur-md"
-            >
-              <span className="text-[11px] uppercase tracking-[0.26em] text-cyan-100/54">
-                {item.label}
-              </span>
-              <div className="mt-1 text-lg font-bold tracking-[-0.03em] text-white">{item.value}</div>
-            </div>
-          ))}
+          <motion.div
+            animate={{ opacity: [0.26, 0.72, 0.26], scale: [0.92, 1.03, 0.92] }}
+            transition={{ duration: 5.2, repeat: Number.POSITIVE_INFINITY, ease: 'easeInOut' }}
+            className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/10 bg-white/[0.02] blur-[1px]"
+          />
         </motion.div>
       </div>
-    </section>
+    </div>
   )
 }
