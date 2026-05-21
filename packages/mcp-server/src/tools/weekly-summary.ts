@@ -70,6 +70,7 @@ export async function getWeeklySummary(args: { username?: string; repo?: string 
         `- 변경: +${pr.additions} / -${pr.deletions} (${pr.changedFiles}개 파일)`,
         `- 리뷰: ${pr.reviewCount}개 / 임팩트 점수: ${pr.impactScore}/100`,
         `- 커밋: ${pr.commitSubjects.join(' | ')}`,
+        ...(pr.bodyKeywords.length > 0 ? [`- 키워드: ${pr.bodyKeywords.join(', ')}`] : []),
         ``
       )
     })
