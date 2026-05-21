@@ -2,6 +2,7 @@ import { extractKeywords } from './extract-keywords.js'
 
 export interface RawPR {
   title: string
+  body?: string | null
   state: string
   additions: number
   deletions: number
@@ -32,10 +33,13 @@ export function compactPR(raw: RawPR): CompactedPR {
     .filter(Boolean)
     .slice(0, 10)
 
-  // 임팩트 점수: 변경 라인이 많고 리뷰 많을수록 높음 (최대 100)
-  const changeScore = Math.min(60, Math.floor((raw.additions + raw.deletions) / 100) * 10)
+  // 임팩트 점수: 변경량, 파일 범위, 리뷰 참여, 실제 머지 여부를 함께 반영
+  const changeScore = Math.min(45, Math.floor((raw.additions + raw.deletions) / 120) * 8)
+  const fileScopeScore = Math.min(20, raw.changedFiles * 2)
   const reviewScore = Math.min(40, raw.reviews.totalCount * 8)
-  const impactScore = changeScore + reviewScore
+  const mergeBonus = raw.state === 'MERGED' ? 8 : 0
+  const impactScore = Math.min(100, changeScore + fileScopeScore + reviewScore + mergeBonus)
+  const bodyKeywords = extractKeywords(raw.body ?? '')
 
   return {
     title: raw.title,
@@ -47,7 +51,7 @@ export function compactPR(raw: RawPR): CompactedPR {
     changedFiles: raw.changedFiles,
     reviewCount: raw.reviews.totalCount,
     commitSubjects,
-    bodyKeywords: [],   // PR body는 GraphQL에서 선택적으로 요청
+    bodyKeywords,
     impactScore,
   }
 }
