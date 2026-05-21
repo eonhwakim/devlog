@@ -1,5 +1,14 @@
-import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
-import { COLLABORATION_SCORE_QUERY } from '../github/queries.js'
+import {
+  collectConnectionNodes,
+  createGitHubClient,
+  resolveGitHubUsername,
+  type ContributionConnection,
+} from '../github/client.js'
+import {
+  COLLABORATION_PR_QUERY,
+  COLLABORATION_REVIEW_QUERY,
+  COLLABORATION_SCORE_QUERY,
+} from '../github/queries.js'
 import { normalizePositiveInteger } from './args.js'
 
 interface ReviewContribution {
@@ -24,8 +33,22 @@ interface CollaborationResponse {
     contributionsCollection: {
       totalPullRequestContributions: number
       totalPullRequestReviewContributions: number
-      pullRequestContributions: { nodes: PRContribution[] }
-      pullRequestReviewContributions: { nodes: ReviewContribution[] }
+    }
+  }
+}
+
+interface CollaborationPRPageResponse {
+  user: {
+    contributionsCollection: {
+      pullRequestContributions: ContributionConnection<PRContribution>
+    }
+  }
+}
+
+interface CollaborationReviewPageResponse {
+  user: {
+    contributionsCollection: {
+      pullRequestReviewContributions: ContributionConnection<ReviewContribution>
     }
   }
 }
@@ -109,15 +132,24 @@ export async function getCollaborationScore(args: { username?: string; weeks?: n
   const to = new Date()
   const from = new Date(to.getTime() - weeks * 7 * 24 * 60 * 60 * 1000)
 
-  const data = await client<CollaborationResponse>(COLLABORATION_SCORE_QUERY, {
+  const baseVariables = {
     username: resolvedUsername,
     from: from.toISOString(),
     to: to.toISOString(),
-  })
+  }
+  const data = await client<CollaborationResponse>(COLLABORATION_SCORE_QUERY, baseVariables)
 
   const c = data.user.contributionsCollection
-  const prs = c.pullRequestContributions.nodes
-  const reviews = c.pullRequestReviewContributions.nodes
+  const prs = await collectConnectionNodes(
+    pullRequestCursor =>
+      client<CollaborationPRPageResponse>(COLLABORATION_PR_QUERY, { ...baseVariables, pullRequestCursor }),
+    response => response.user.contributionsCollection.pullRequestContributions
+  )
+  const reviews = await collectConnectionNodes(
+    reviewCursor =>
+      client<CollaborationReviewPageResponse>(COLLABORATION_REVIEW_QUERY, { ...baseVariables, reviewCursor }),
+    response => response.user.contributionsCollection.pullRequestReviewContributions
+  )
 
   const prBody = scorePRBodies(prs)
   const commit = scoreCommitMessages(prs)

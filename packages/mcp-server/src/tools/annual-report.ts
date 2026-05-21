@@ -1,4 +1,9 @@
-import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
+import {
+  collectConnectionNodes,
+  createGitHubClient,
+  resolveGitHubUsername,
+  type ContributionConnection,
+} from '../github/client.js'
 import { ANNUAL_REPORT_QUERY } from '../github/queries.js'
 import { compactPR, type RawPR } from '../compactor/index.js'
 import { normalizeYear } from './args.js'
@@ -23,9 +28,7 @@ interface AnnualReportResponse {
         repository: { name: string; primaryLanguage: { name: string } | null }
         contributions: { totalCount: number }
       }>
-      pullRequestContributions: {
-        nodes: Array<{ pullRequest: RawPR }>
-      }
+      pullRequestContributions: ContributionConnection<{ pullRequest: RawPR }>
     }
   }
 }
@@ -39,16 +42,23 @@ export async function getAnnualReport(args: { username?: string; year?: number }
   const from = new Date(`${year}-01-01T00:00:00Z`)
   const to = new Date(`${year}-12-31T23:59:59Z`)
 
-  const data = await client<AnnualReportResponse>(ANNUAL_REPORT_QUERY, {
+  const baseVariables = {
     username: resolvedUsername,
     from: from.toISOString(),
     to: to.toISOString(),
-  })
+  }
+  const data = await client<AnnualReportResponse>(ANNUAL_REPORT_QUERY, baseVariables)
 
   const { user } = data
   const c = user.contributionsCollection
+  const prNodes = await collectConnectionNodes(
+    pullRequestCursor =>
+      client<AnnualReportResponse>(ANNUAL_REPORT_QUERY, { ...baseVariables, pullRequestCursor }),
+    response => response.user.contributionsCollection.pullRequestContributions,
+    data
+  )
 
-  const prs = c.pullRequestContributions.nodes
+  const prs = prNodes
     .map(n => n.pullRequest)
     .map(compactPR)
     .sort((a, b) => b.impactScore - a.impactScore)

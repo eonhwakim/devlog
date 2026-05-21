@@ -25,3 +25,36 @@ export async function resolveGitHubUsername(
   const data = await client<{ viewer: { login: string } }>(VIEWER_LOGIN_QUERY)
   return data.viewer.login
 }
+
+export interface PageInfo {
+  hasNextPage: boolean
+  endCursor: string | null
+}
+
+export interface ContributionConnection<TNode> {
+  totalCount?: number
+  pageInfo: PageInfo
+  nodes: TNode[]
+}
+
+export async function collectConnectionNodes<TResponse, TNode>(
+  fetchPage: (cursor?: string) => Promise<TResponse>,
+  pickConnection: (response: TResponse) => ContributionConnection<TNode>,
+  initialResponse?: TResponse
+): Promise<TNode[]> {
+  const nodes: TNode[] = []
+  let response = initialResponse
+
+  while (true) {
+    if (!response) {
+      response = await fetchPage()
+    }
+    const connection = pickConnection(response)
+    nodes.push(...connection.nodes)
+
+    if (!connection.pageInfo.hasNextPage || !connection.pageInfo.endCursor) break
+    response = await fetchPage(connection.pageInfo.endCursor)
+  }
+
+  return nodes
+}

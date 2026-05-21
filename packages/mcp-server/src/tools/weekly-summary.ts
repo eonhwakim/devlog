@@ -1,4 +1,9 @@
-import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
+import {
+  collectConnectionNodes,
+  createGitHubClient,
+  resolveGitHubUsername,
+  type ContributionConnection,
+} from '../github/client.js'
 import { WEEKLY_SUMMARY_QUERY } from '../github/queries.js'
 import { compactPR, type RawPR } from '../compactor/index.js'
 
@@ -15,9 +20,7 @@ interface WeeklySummaryResponse {
         repository: { name: string; primaryLanguage: { name: string } | null }
         contributions: { totalCount: number }
       }>
-      pullRequestContributions: {
-        nodes: Array<{ pullRequest: RawPR }>
-      }
+      pullRequestContributions: ContributionConnection<{ pullRequest: RawPR }>
     }
   }
 }
@@ -30,16 +33,23 @@ export async function getWeeklySummary(args: { username?: string; repo?: string 
   const now = new Date()
   const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-  const data = await client<WeeklySummaryResponse>(WEEKLY_SUMMARY_QUERY, {
+  const baseVariables = {
     username: resolvedUsername,
     from: from.toISOString(),
     to: now.toISOString(),
-  })
+  }
+  const data = await client<WeeklySummaryResponse>(WEEKLY_SUMMARY_QUERY, baseVariables)
 
   const { user } = data
   const c = user.contributionsCollection
+  const prNodes = await collectConnectionNodes(
+    pullRequestCursor =>
+      client<WeeklySummaryResponse>(WEEKLY_SUMMARY_QUERY, { ...baseVariables, pullRequestCursor }),
+    response => response.user.contributionsCollection.pullRequestContributions,
+    data
+  )
 
-  const prs = c.pullRequestContributions.nodes
+  const prs = prNodes
     .map(n => n.pullRequest)
     .filter(pr => !repo || pr.baseRepository?.name === repo)
     .map(compactPR)
@@ -56,6 +66,7 @@ export async function getWeeklySummary(args: { username?: string; repo?: string 
     `- PR: ${c.totalPullRequestContributions}개`,
     `- 코드 리뷰: ${c.totalPullRequestReviewContributions}개`,
     `- 이슈: ${c.totalIssueContributions}개`,
+    ...(repo ? [`- 참고: 위 활동 수치는 계정 전체 기준이며, 아래 PR/레포 목록만 ${repo}로 필터링되었습니다.`] : []),
     ``,
     `## PR 목록`,
   ]
