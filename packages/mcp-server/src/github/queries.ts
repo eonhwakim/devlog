@@ -19,6 +19,7 @@ export const WEEKLY_SUMMARY_QUERY = `
           nodes {
             pullRequest {
               title
+              body
               state
               additions
               deletions
@@ -26,7 +27,7 @@ export const WEEKLY_SUMMARY_QUERY = `
               mergedAt
               baseRepository { name }
               reviews { totalCount }
-              commits(first: 20) {
+              commits(first: 30) {
                 nodes {
                   commit { message }
                 }
@@ -54,12 +55,12 @@ export const COLLABORATION_SCORE_QUERY = `
       contributionsCollection(from: $from, to: $to) {
         totalPullRequestContributions
         totalPullRequestReviewContributions
-        pullRequestContributions(first: 30) {
+        pullRequestContributions(first: 100) {
           nodes {
             pullRequest {
               title
               body
-              commits(first: 30) {
+              commits(first: 50) {
                 nodes {
                   commit { message }
                 }
@@ -67,12 +68,12 @@ export const COLLABORATION_SCORE_QUERY = `
             }
           }
         }
-        pullRequestReviewContributions(first: 30) {
+        pullRequestReviewContributions(first: 100) {
           nodes {
             pullRequestReview {
               body
               state
-              comments(first: 5) {
+              comments(first: 10) {
                 nodes { body }
               }
             }
@@ -88,7 +89,7 @@ export const MONTHLY_LANG_QUERY = `
     user(login: $username) {
       contributionsCollection(from: $from, to: $to) {
         totalCommitContributions
-        commitContributionsByRepository(maxRepositories: 20) {
+        commitContributionsByRepository(maxRepositories: 30) {
           repository {
             name
             primaryLanguage { name }
@@ -120,17 +121,18 @@ export const ANNUAL_REPORT_QUERY = `
             }
           }
         }
-        commitContributionsByRepository(maxRepositories: 20) {
+        commitContributionsByRepository(maxRepositories: 30) {
           repository {
             name
             primaryLanguage { name }
           }
           contributions { totalCount }
         }
-        pullRequestContributions(first: 50) {
+        pullRequestContributions(first: 100) {
           nodes {
             pullRequest {
               title
+              body
               state
               additions
               deletions
@@ -138,7 +140,7 @@ export const ANNUAL_REPORT_QUERY = `
               mergedAt
               baseRepository { name }
               reviews { totalCount }
-              commits(first: 10) {
+              commits(first: 30) {
                 nodes {
                   commit { message }
                 }
