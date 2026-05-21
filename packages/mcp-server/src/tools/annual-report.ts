@@ -1,4 +1,4 @@
-import { createGitHubClient } from '../github/client.js'
+import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { ANNUAL_REPORT_QUERY } from '../github/queries.js'
 import { compactPR, type RawPR } from '../compactor/index.js'
 
@@ -29,15 +29,16 @@ interface AnnualReportResponse {
   }
 }
 
-export async function getAnnualReport(args: { username: string; year?: number }) {
+export async function getAnnualReport(args: { username?: string; year?: number }) {
   const { username, year = new Date().getFullYear() } = args
   const client = createGitHubClient()
+  const resolvedUsername = await resolveGitHubUsername(client, username)
 
   const from = new Date(`${year}-01-01T00:00:00Z`)
   const to = new Date(`${year}-12-31T23:59:59Z`)
 
   const data = await client<AnnualReportResponse>(ANNUAL_REPORT_QUERY, {
-    username,
+    username: resolvedUsername,
     from: from.toISOString(),
     to: to.toISOString(),
   })
@@ -75,7 +76,7 @@ export async function getAnnualReport(args: { username: string; year?: number })
   const mergedPRs = prs.filter(pr => pr.state === 'MERGED')
 
   const lines = [
-    `# devlog 연간 리포트 — @${username} (${year}년)`,
+    `# devlog 연간 리포트 — @${resolvedUsername} (${year}년)`,
     ``,
     `## 핵심 수치 (연봉협상 자료)`,
     `- 총 기여: ${c.contributionCalendar.totalContributions}회`,

@@ -1,4 +1,4 @@
-import { createGitHubClient } from '../github/client.js'
+import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { COLLABORATION_SCORE_QUERY } from '../github/queries.js'
 
 interface ReviewContribution {
@@ -99,15 +99,16 @@ function scoreReviews(
   }
 }
 
-export async function getCollaborationScore(args: { username: string; weeks?: number }) {
+export async function getCollaborationScore(args: { username?: string; weeks?: number }) {
   const { username, weeks = 4 } = args
   const client = createGitHubClient()
+  const resolvedUsername = await resolveGitHubUsername(client, username)
 
   const to = new Date()
   const from = new Date(to.getTime() - weeks * 7 * 24 * 60 * 60 * 1000)
 
   const data = await client<CollaborationResponse>(COLLABORATION_SCORE_QUERY, {
-    username,
+    username: resolvedUsername,
     from: from.toISOString(),
     to: to.toISOString(),
   })
@@ -123,7 +124,7 @@ export async function getCollaborationScore(args: { username: string; weeks?: nu
   const total = prBody.score + commit.score + review.participation + review.quality
 
   const lines = [
-    `# devlog 협업 지표 — @${username}`,
+    `# devlog 협업 지표 — @${resolvedUsername}`,
     `기간: ${from.toISOString().split('T')[0]} ~ ${to.toISOString().split('T')[0]} (${weeks}주)`,
     ``,
     `## 종합 점수: ${total} / 100`,

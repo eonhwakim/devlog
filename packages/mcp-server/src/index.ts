@@ -22,14 +22,13 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         properties: {
           username: {
             type: 'string',
-            description: 'GitHub 유저명 (예: eonhwakim)',
+            description: 'GitHub 유저명 (생략 시 현재 인증된 GitHub 계정)',
           },
           repo: {
             type: 'string',
             description: '(선택) 특정 레포지토리만 필터링',
           },
         },
-        required: ['username'],
       },
     },
     {
@@ -39,10 +38,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          username: { type: 'string', description: 'GitHub 유저명' },
+          username: { type: 'string', description: 'GitHub 유저명 (생략 시 현재 인증된 GitHub 계정)' },
           year: { type: 'number', description: '분석할 연도 (기본값: 현재 연도)' },
         },
-        required: ['username'],
       },
     },
     {
@@ -52,10 +50,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          username: { type: 'string', description: 'GitHub 유저명' },
+          username: { type: 'string', description: 'GitHub 유저명 (생략 시 현재 인증된 GitHub 계정)' },
           weeks: { type: 'number', description: '분석 기간 (기본값: 4주)' },
         },
-        required: ['username'],
       },
     },
     {
@@ -65,10 +62,9 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          username: { type: 'string', description: 'GitHub 유저명' },
+          username: { type: 'string', description: 'GitHub 유저명 (생략 시 현재 인증된 GitHub 계정)' },
           months: { type: 'number', description: '분석 기간 (기본값: 6개월)' },
         },
-        required: ['username'],
       },
     },
   ],
@@ -80,13 +76,13 @@ server.setRequestHandler(CallToolRequestSchema, async request => {
   try {
     switch (name) {
       case 'get_weekly_summary':
-        return await getWeeklySummary(args as { username: string; repo?: string })
+        return await getWeeklySummary(args as { username?: string; repo?: string })
       case 'get_annual_report':
-        return await getAnnualReport(args as { username: string; year?: number })
+        return await getAnnualReport(args as { username?: string; year?: number })
       case 'get_collaboration_score':
-        return await getCollaborationScore(args as { username: string; weeks?: number })
+        return await getCollaborationScore(args as { username?: string; weeks?: number })
       case 'get_tech_stack_trend':
-        return await getTechStackTrend(args as { username: string; months?: number })
+        return await getTechStackTrend(args as { username?: string; months?: number })
       default:
         return {
           content: [{ type: 'text' as const, text: `알 수 없는 툴: ${name}` }],

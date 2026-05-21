@@ -95,6 +95,7 @@ export async function GET() {
   })
 
   const c = data.viewer.contributionsCollection
+  const currentYear = now.getFullYear()
 
   // 언어별 커밋 집계
   const languageMap: Record<string, number> = {}
@@ -115,10 +116,21 @@ export async function GET() {
     additions: n.pullRequest.additions,
     deletions: n.pullRequest.deletions,
     mergedAt: n.pullRequest.mergedAt,
+    reviews: n.pullRequest.reviews?.totalCount ?? 0,
   }))
 
   const totalAdditions = prs.reduce((s: number, p: any) => s + (p.additions ?? 0), 0)
   const totalDeletions = prs.reduce((s: number, p: any) => s + (p.deletions ?? 0), 0)
+  const mergedPRs = prs.filter((p: any) => p.state === 'MERGED')
+  const avgPrSize = prs.length > 0
+    ? Math.round(prs.reduce((s: number, p: any) => s + (p.additions ?? 0) + (p.deletions ?? 0), 0) / prs.length)
+    : 0
+  const largestPRs = [...prs]
+    .sort((a: any, b: any) => ((b.additions + b.deletions) - (a.additions + a.deletions)))
+    .slice(0, 5)
+  const mostReviewedPRs = [...prs]
+    .sort((a: any, b: any) => (b.reviews - a.reviews))
+    .slice(0, 5)
 
   // 기여한 레포 목록
   const topRepos = c.commitContributionsByRepository
@@ -142,6 +154,43 @@ export async function GET() {
     }
   }
 
+  const monthlyActivityEntries = Object.entries(monthlyActivity)
+    .sort()
+    .map(([month, count]) => ({ month, count }))
+  const peakMonth = monthlyActivityEntries.reduce(
+    (best, current) => current.count > best.count ? current : best,
+    monthlyActivityEntries[0] ?? { month: `${currentYear}-01`, count: 0 }
+  )
+
+  const contributionDays = c.contributionCalendar.weeks.flatMap((week: any) => week.contributionDays)
+  let activeDays = 0
+  let longestStreak = 0
+  let currentStreak = 0
+
+  for (const day of contributionDays) {
+    if (day.contributionCount > 0) {
+      activeDays += 1
+      currentStreak += 1
+      longestStreak = Math.max(longestStreak, currentStreak)
+    } else {
+      currentStreak = 0
+    }
+  }
+
+  const totalReviewsAuthored = c.pullRequestReviewContributions.totalCount
+  const totalReviewBodyLength = c.pullRequestReviewContributions.nodes.reduce(
+    (sum: number, node: any) => sum + (node.pullRequestReview.bodyText?.length ?? 0),
+    0
+  )
+  const avgReviewBodyLength = totalReviewsAuthored > 0
+    ? Math.round(totalReviewBodyLength / totalReviewsAuthored)
+    : 0
+
+  const totalCareerYears = Math.max(
+    1,
+    now.getFullYear() - new Date(data.viewer.createdAt).getFullYear() + 1
+  )
+
   return NextResponse.json({
     username: data.viewer.login,
     name: data.viewer.name,
@@ -157,12 +206,24 @@ export async function GET() {
       issues: c.totalIssueContributions,
       additions: totalAdditions,
       deletions: totalDeletions,
+      mergedPrs: mergedPRs.length,
+      mergeRate: prs.length > 0 ? Math.round((mergedPRs.length / prs.length) * 100) : 0,
+      avgPrSize,
+      activeDays,
+      longestStreak,
+      avgReviewBodyLength,
+      contributedRepos: c.commitContributionsByRepository.length,
     },
     topLanguages,
     topRepos,
     recentPRs: prs.slice(0, 20),
-    monthlyActivity: Object.entries(monthlyActivity)
-      .sort()
-      .map(([month, count]) => ({ month, count })),
+    monthlyActivity: monthlyActivityEntries,
+    highlights: {
+      peakMonth,
+      largestPRs,
+      mostReviewedPRs,
+      strongestRepo: topRepos[0] ?? null,
+      totalCareerYears,
+    },
   })
 }

@@ -1,4 +1,4 @@
-import { createGitHubClient } from '../github/client.js'
+import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { MONTHLY_LANG_QUERY } from '../github/queries.js'
 
 interface MonthlyLangResponse {
@@ -51,15 +51,16 @@ function buildTrendBar(ratio: number, maxWidth = 12): string {
   return '█'.repeat(filled) + '░'.repeat(maxWidth - filled)
 }
 
-export async function getTechStackTrend(args: { username: string; months?: number }) {
+export async function getTechStackTrend(args: { username?: string; months?: number }) {
   const { username, months = 6 } = args
   const client = createGitHubClient()
+  const resolvedUsername = await resolveGitHubUsername(client, username)
 
   // 현재 달부터 N개월 전까지 병렬 조회
   const now = new Date()
   const queries = Array.from({ length: months }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    return fetchMonthStats(client, username, d.getFullYear(), d.getMonth())
+    return fetchMonthStats(client, resolvedUsername, d.getFullYear(), d.getMonth())
   })
 
   const snapshots = (await Promise.all(queries)).reverse() // 오래된 달 → 최근 달 순
@@ -85,7 +86,7 @@ export async function getTechStackTrend(args: { username: string; months?: numbe
   const last = snapshots[snapshots.length - 1]
 
   const lines = [
-    `# devlog 기술 스택 트렌드 — @${username}`,
+    `# devlog 기술 스택 트렌드 — @${resolvedUsername}`,
     `기간: ${snapshots[0].label} ~ ${snapshots[snapshots.length - 1].label} (${months}개월)`,
     ``,
     `## 월별 커밋 수`,

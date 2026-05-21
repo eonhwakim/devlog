@@ -1,4 +1,5 @@
 import { graphql } from '@octokit/graphql'
+import { VIEWER_LOGIN_QUERY } from './queries.js'
 
 export type GitHubClient = typeof graphql
 
@@ -13,4 +14,14 @@ export function createGitHubClient(): GitHubClient {
   return graphql.defaults({
     headers: { authorization: `token ${token}` },
   })
+}
+
+export async function resolveGitHubUsername(
+  client: GitHubClient,
+  username?: string
+): Promise<string> {
+  if (username?.trim()) return username.trim()
+
+  const data = await client<{ viewer: { login: string } }>(VIEWER_LOGIN_QUERY)
+  return data.viewer.login
 }

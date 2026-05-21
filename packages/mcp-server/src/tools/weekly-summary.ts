@@ -1,4 +1,4 @@
-import { createGitHubClient } from '../github/client.js'
+import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { WEEKLY_SUMMARY_QUERY } from '../github/queries.js'
 import { compactPR, type RawPR } from '../compactor/index.js'
 
@@ -22,15 +22,16 @@ interface WeeklySummaryResponse {
   }
 }
 
-export async function getWeeklySummary(args: { username: string; repo?: string }) {
+export async function getWeeklySummary(args: { username?: string; repo?: string }) {
   const { username, repo } = args
   const client = createGitHubClient()
+  const resolvedUsername = await resolveGitHubUsername(client, username)
 
   const now = new Date()
   const from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
 
   const data = await client<WeeklySummaryResponse>(WEEKLY_SUMMARY_QUERY, {
-    username,
+    username: resolvedUsername,
     from: from.toISOString(),
     to: now.toISOString(),
   })
@@ -47,7 +48,7 @@ export async function getWeeklySummary(args: { username: string; repo?: string }
     .filter(r => !repo || r.repository.name === repo)
 
   const lines = [
-    `# devlog 주간 리포트 — @${username}`,
+    `# devlog 주간 리포트 — @${resolvedUsername}`,
     `기간: ${from.toISOString().split('T')[0]} ~ ${now.toISOString().split('T')[0]}`,
     ``,
     `## 활동 수치`,

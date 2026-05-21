@@ -39,6 +39,14 @@ export const WEEKLY_SUMMARY_QUERY = `
   }
 `
 
+export const VIEWER_LOGIN_QUERY = `
+  query ViewerLogin {
+    viewer {
+      login
+    }
+  }
+`
+
 export const COLLABORATION_SCORE_QUERY = `
   query CollaborationScore($username: String!, $from: DateTime!, $to: DateTime!) {
     user(login: $username) {
