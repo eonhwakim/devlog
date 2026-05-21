@@ -1,6 +1,6 @@
 {
   "name": "@eonhwakim/devlog-mcp",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "GitHub activity digest MCP server — weekly summary, annual report, collaboration score",
   "type": "module",
   "bin": {
