@@ -1,5 +1,6 @@
 import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { MONTHLY_LANG_QUERY } from '../github/queries.js'
+import { normalizePositiveInteger } from './args.js'
 
 interface MonthlyLangResponse {
   user: {
@@ -52,7 +53,8 @@ function buildTrendBar(ratio: number, maxWidth = 12): string {
 }
 
 export async function getTechStackTrend(args: { username?: string; months?: number }) {
-  const { username, months = 6 } = args
+  const { username } = args
+  const months = normalizePositiveInteger(args.months, 6, { min: 1, max: 12 })
   const client = createGitHubClient()
   const resolvedUsername = await resolveGitHubUsername(client, username)
 
@@ -64,10 +66,6 @@ export async function getTechStackTrend(args: { username?: string; months?: numb
   })
 
   const snapshots = (await Promise.all(queries)).reverse() // 오래된 달 → 최근 달 순
-
-  // 등장한 모든 언어 수집
-  const allLangs = new Set<string>()
-  snapshots.forEach(s => s.langStats.forEach((_, lang) => allLangs.add(lang)))
 
   // 언어별 총 커밋 합산 (상위 5개만)
   const langTotals = new Map<string, number>()
@@ -128,6 +126,10 @@ export async function getTechStackTrend(args: { username?: string; months?: numb
   })
 
   lines.push(
+    ``,
+    `## 해석 주의`,
+    `- 이 리포트의 언어 추이는 각 저장소의 대표 언어(primary language) 기준 추정치입니다.`,
+    `- 하나의 저장소 안에서 여러 기술을 함께 쓴 경우 실제 체감 스택과 차이가 날 수 있습니다.`,
     ``,
     `---`,
     `*위 기술 스택 변화 데이터를 바탕으로:*`,

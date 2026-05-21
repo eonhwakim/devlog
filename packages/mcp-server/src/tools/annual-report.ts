@@ -1,6 +1,7 @@
 import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { ANNUAL_REPORT_QUERY } from '../github/queries.js'
 import { compactPR, type RawPR } from '../compactor/index.js'
+import { normalizeYear } from './args.js'
 
 interface AnnualReportResponse {
   user: {
@@ -30,7 +31,8 @@ interface AnnualReportResponse {
 }
 
 export async function getAnnualReport(args: { username?: string; year?: number }) {
-  const { username, year = new Date().getFullYear() } = args
+  const { username } = args
+  const year = normalizeYear(args.year, new Date().getFullYear())
   const client = createGitHubClient()
   const resolvedUsername = await resolveGitHubUsername(client, username)
 
@@ -100,6 +102,7 @@ export async function getAnnualReport(args: { username?: string; year?: number }
       `- 상태: ${pr.state}${pr.mergedAt ? ` / 머지: ${pr.mergedAt}` : ''}`,
       `- 변경: +${pr.additions} / -${pr.deletions} (${pr.changedFiles}개 파일)`,
       `- 리뷰: ${pr.reviewCount}개 / 임팩트 점수: ${pr.impactScore}/100`,
+      ...(pr.bodyKeywords.length > 0 ? [`- 키워드: ${pr.bodyKeywords.join(', ')}`] : []),
       ``
     )
   })

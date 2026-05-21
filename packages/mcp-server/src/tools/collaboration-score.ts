@@ -1,5 +1,6 @@
 import { createGitHubClient, resolveGitHubUsername } from '../github/client.js'
 import { COLLABORATION_SCORE_QUERY } from '../github/queries.js'
+import { normalizePositiveInteger } from './args.js'
 
 interface ReviewContribution {
   pullRequestReview: {
@@ -100,7 +101,8 @@ function scoreReviews(
 }
 
 export async function getCollaborationScore(args: { username?: string; weeks?: number }) {
-  const { username, weeks = 4 } = args
+  const { username } = args
+  const weeks = normalizePositiveInteger(args.weeks, 4, { min: 1, max: 26 })
   const client = createGitHubClient()
   const resolvedUsername = await resolveGitHubUsername(client, username)
 
