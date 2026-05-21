@@ -1,5 +1,10 @@
 export const WEEKLY_SUMMARY_QUERY = `
-  query WeeklySummary($username: String!, $from: DateTime!, $to: DateTime!) {
+  query WeeklySummary(
+    $username: String!,
+    $from: DateTime!,
+    $to: DateTime!,
+    $pullRequestCursor: String
+  ) {
     user(login: $username) {
       name
       login
@@ -8,14 +13,19 @@ export const WEEKLY_SUMMARY_QUERY = `
         totalPullRequestContributions
         totalPullRequestReviewContributions
         totalIssueContributions
-        commitContributionsByRepository(maxRepositories: 10) {
+        commitContributionsByRepository(maxRepositories: 100) {
           repository {
             name
             primaryLanguage { name }
           }
           contributions { totalCount }
         }
-        pullRequestContributions(first: 20) {
+        pullRequestContributions(first: 100, after: $pullRequestCursor) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             pullRequest {
               title
@@ -49,13 +59,36 @@ export const VIEWER_LOGIN_QUERY = `
 `
 
 export const COLLABORATION_SCORE_QUERY = `
-  query CollaborationScore($username: String!, $from: DateTime!, $to: DateTime!) {
+  query CollaborationScore(
+    $username: String!,
+    $from: DateTime!,
+    $to: DateTime!
+  ) {
     user(login: $username) {
       login
       contributionsCollection(from: $from, to: $to) {
         totalPullRequestContributions
         totalPullRequestReviewContributions
-        pullRequestContributions(first: 100) {
+      }
+    }
+  }
+`
+
+export const COLLABORATION_PR_QUERY = `
+  query CollaborationPullRequests(
+    $username: String!,
+    $from: DateTime!,
+    $to: DateTime!,
+    $pullRequestCursor: String
+  ) {
+    user(login: $username) {
+      contributionsCollection(from: $from, to: $to) {
+        pullRequestContributions(first: 100, after: $pullRequestCursor) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             pullRequest {
               title
@@ -68,7 +101,26 @@ export const COLLABORATION_SCORE_QUERY = `
             }
           }
         }
-        pullRequestReviewContributions(first: 100) {
+      }
+    }
+  }
+`
+
+export const COLLABORATION_REVIEW_QUERY = `
+  query CollaborationReviews(
+    $username: String!,
+    $from: DateTime!,
+    $to: DateTime!,
+    $reviewCursor: String
+  ) {
+    user(login: $username) {
+      contributionsCollection(from: $from, to: $to) {
+        pullRequestReviewContributions(first: 100, after: $reviewCursor) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             pullRequestReview {
               body
@@ -89,7 +141,7 @@ export const MONTHLY_LANG_QUERY = `
     user(login: $username) {
       contributionsCollection(from: $from, to: $to) {
         totalCommitContributions
-        commitContributionsByRepository(maxRepositories: 30) {
+        commitContributionsByRepository(maxRepositories: 100) {
           repository {
             name
             primaryLanguage { name }
@@ -102,7 +154,12 @@ export const MONTHLY_LANG_QUERY = `
 `
 
 export const ANNUAL_REPORT_QUERY = `
-  query AnnualReport($username: String!, $from: DateTime!, $to: DateTime!) {
+  query AnnualReport(
+    $username: String!,
+    $from: DateTime!,
+    $to: DateTime!,
+    $pullRequestCursor: String
+  ) {
     user(login: $username) {
       name
       login
@@ -121,14 +178,19 @@ export const ANNUAL_REPORT_QUERY = `
             }
           }
         }
-        commitContributionsByRepository(maxRepositories: 30) {
+        commitContributionsByRepository(maxRepositories: 100) {
           repository {
             name
             primaryLanguage { name }
           }
           contributions { totalCount }
         }
-        pullRequestContributions(first: 100) {
+        pullRequestContributions(first: 100, after: $pullRequestCursor) {
+          totalCount
+          pageInfo {
+            hasNextPage
+            endCursor
+          }
           nodes {
             pullRequest {
               title
