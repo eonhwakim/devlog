@@ -1,7 +1,7 @@
 import { auth } from "@/auth";
+import { DashboardExperience } from "@/components/dashboard/DashboardExperience";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardPageStateProvider } from "@/components/dashboard/DashboardPageState";
-import { DashboardExperience } from "@/components/dashboard/DashboardExperience";
 import { redirect } from "next/navigation";
 
 interface DashboardQueryResult {
@@ -9,11 +9,13 @@ interface DashboardQueryResult {
     name: string | null;
     login: string;
     contributionsCollection: {
+      totalRepositoriesWithContributedCommits: number;
       totalCommitContributions: number;
       totalPullRequestContributions: number;
       totalPullRequestReviewContributions: number;
       totalIssueContributions: number;
       contributionCalendar: {
+        totalContributions: number;
         weeks: Array<{
           contributionDays: Array<{
             contributionCount: number;
@@ -37,8 +39,10 @@ interface DashboardQueryResult {
             state: string;
             additions: number;
             deletions: number;
+            changedFiles: number;
             mergedAt: string | null;
             baseRepository: { name: string } | null;
+            reviews: { totalCount: number };
           };
         }>;
       };
@@ -121,11 +125,13 @@ export default async function DashboardPage() {
         name
         login
         contributionsCollection(from: $from, to: $to) {
+          totalRepositoriesWithContributedCommits
           totalCommitContributions
           totalPullRequestContributions
           totalPullRequestReviewContributions
           totalIssueContributions
           contributionCalendar {
+            totalContributions
             weeks {
               contributionDays {
                 contributionCount
@@ -133,22 +139,24 @@ export default async function DashboardPage() {
               }
             }
           }
-          commitContributionsByRepository(maxRepositories: 6) {
+          commitContributionsByRepository(maxRepositories: 12) {
             repository {
               name
               primaryLanguage { name }
             }
             contributions { totalCount }
           }
-          pullRequestContributions(first: 8) {
+          pullRequestContributions(first: 24) {
             nodes {
               pullRequest {
                 title
                 state
                 additions
                 deletions
+                changedFiles
                 mergedAt
                 baseRepository { name }
+                reviews { totalCount }
               }
             }
           }
@@ -183,7 +191,9 @@ export default async function DashboardPage() {
     state: node.pullRequest.state,
     additions: node.pullRequest.additions,
     deletions: node.pullRequest.deletions,
+    changedFiles: node.pullRequest.changedFiles,
     mergedAt: node.pullRequest.mergedAt,
+    reviews: node.pullRequest.reviews.totalCount,
   }));
 
   const topRepos = contribution.commitContributionsByRepository.map((repo) => ({
@@ -198,6 +208,66 @@ export default async function DashboardPage() {
     reviews: contribution.totalPullRequestReviewContributions,
     issues: contribution.totalIssueContributions,
   };
+
+  const mergedPRs = recentPRs.filter((pr) => pr.state === "MERGED");
+  const totalAdditions = recentPRs.reduce((sum, pr) => sum + pr.additions, 0);
+  const totalDeletions = recentPRs.reduce((sum, pr) => sum + pr.deletions, 0);
+  const activeDays = dailyActivity.filter((day) => day.count > 0).length;
+
+  let longestStreak = 0;
+  let currentStreak = 0;
+  for (const day of dailyActivity) {
+    if (day.count > 0) {
+      currentStreak += 1;
+      longestStreak = Math.max(longestStreak, currentStreak);
+    } else {
+      currentStreak = 0;
+    }
+  }
+
+  const monthlyMap = new Map<string, number>();
+  dailyActivity.forEach((day) => {
+    const monthKey = day.date.slice(0, 7);
+    monthlyMap.set(monthKey, (monthlyMap.get(monthKey) ?? 0) + day.count);
+  });
+  const peakMonthEntry = [...monthlyMap.entries()].sort((a, b) => b[1] - a[1])[0] ?? [
+    from.toISOString().slice(0, 7),
+    0,
+  ];
+  const peakMonthLabel = new Date(`${peakMonthEntry[0]}-01T00:00:00`).toLocaleDateString("ko-KR", {
+    year: "numeric",
+    month: "long",
+  });
+
+  const topLanguage = topRepos[0]?.language ?? null;
+  const strongestRepo = topRepos[0] ?? null;
+  const highImpactPR =
+    [...recentPRs].sort(
+      (a, b) =>
+        b.additions + b.deletions + b.reviews * 120 - (a.additions + a.deletions + a.reviews * 120),
+    )[0] ?? null;
+
+  const averagePRSize =
+    recentPRs.length > 0
+      ? Math.round(
+          recentPRs.reduce((sum, pr) => sum + pr.additions + pr.deletions, 0) / recentPRs.length,
+        )
+      : 0;
+
+  const insightLines = [
+    `${peakMonthLabel}에 가장 높은 밀도로 활동했고, 현재까지 ${activeDays}일 동안 흔적을 남겼습니다.`,
+    `평균 PR 규모는 ${averagePRSize.toLocaleString()} lines로, 작게 쪼개기보다는 맥락 있는 단위로 밀어붙이는 패턴이 보입니다.`,
+    `${contribution.totalRepositoriesWithContributedCommits}개 레포를 건드리며 ${topLanguage ?? "다양한"} 중심의 작업축을 유지했습니다. PR 해석은 최근 대표 ${recentPRs.length}건 기준입니다.`,
+    `총 ${contribution.contributionCalendar.totalContributions.toLocaleString()}회의 기여와 최근 대표 PR ${recentPRs.length}건 기준 머지율 ${recentPRs.length > 0 ? Math.round((mergedPRs.length / recentPRs.length) * 100) : 0}%는 실제로 닫힌 작업 비중을 보여줍니다.`,
+  ];
+  const summaryCards = [
+    { label: "총 커밋", value: contribution.totalCommitContributions.toLocaleString() },
+    { label: "활동일", value: activeDays.toLocaleString() },
+    {
+      label: "기여 레포",
+      value: contribution.totalRepositoriesWithContributedCommits.toLocaleString(),
+    },
+  ];
 
   const persona = buildPersona({
     ...stats,
@@ -220,10 +290,13 @@ export default async function DashboardPage() {
             name: data.viewer.name,
           }}
           periodLabel={`${from.toLocaleDateString("ko-KR")} - ${now.toLocaleDateString("ko-KR")}`}
+          totalContributions={contribution.contributionCalendar.totalContributions}
           stats={stats}
           dailyActivity={dailyActivity}
           recentPRs={recentPRs}
           topRepos={topRepos}
+          summaryCards={summaryCards}
+          insightLines={insightLines}
           persona={persona}
         />
       </div>
