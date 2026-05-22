@@ -2,10 +2,14 @@
 
 import { motion } from "framer-motion";
 import type React from "react";
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 
 interface NeuralGrassProps {
   dailyActivity: Array<{ date: string; count: number }>;
+  summaryCards: Array<{
+    label: string;
+    value: string;
+  }>;
 }
 
 const BRAIN_PATH =
@@ -58,7 +62,7 @@ interface Triangle {
   c: number;
 }
 
-export function NeuralGrass({ dailyActivity }: NeuralGrassProps) {
+export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
   const neurons = useMemo<Neuron[]>(() => {
     if (BRAIN_OUTLINE_POINTS.length === 0) return [];
     const sorted = (dailyActivity ?? []).slice().sort((a, b) => a.date.localeCompare(b.date));
@@ -376,6 +380,25 @@ export function NeuralGrass({ dailyActivity }: NeuralGrassProps) {
           />
         </motion.div>
 
+        <motion.div
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.9, ease: "easeOut" }}
+          className="pointer-events-auto absolute inset-x-0 bottom-[-26px] flex flex-col items-center gap-4"
+        >
+          <div className="flex items-center gap-4 rounded-full border-none bg-white/5 px-6 py-3 text-[11px] font-semibold tracking-[0.24em] text-blue-100 uppercase shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
+            {summaryCards.map((card, idx) => (
+              <Fragment key={card.label}>
+                {idx > 0 && <span className="h-4 w-px bg-white/20" />}
+                <span className="text-base font-black tracking-normal text-white drop-shadow-md">
+                  {card.value}
+                </span>
+                <span className="text-white/70">{card.label}</span>
+              </Fragment>
+            ))}
+          </div>
+        </motion.div>
+
         {/* 호버 툴팁 (mix-blend 영향 받지 않도록 외부에 배치) */}
         {hover ? (
           <div
@@ -384,7 +407,7 @@ export function NeuralGrass({ dailyActivity }: NeuralGrassProps) {
           >
             <div>{hoverDateLabel}</div>
             <div className="mt-0.5 text-blue-300">
-              {hover.neuron.count > 0 ? `${hover.neuron.count} commits` : "활동 없음"}
+              {hover.neuron.count > 0 ? `${hover.neuron.count}회 기여` : "활동 없음"}
             </div>
           </div>
         ) : null}

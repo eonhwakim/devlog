@@ -7,6 +7,10 @@ interface HeroSectionProps {
   viewer: { login: string; name: string | null };
   stats: { commits: number; prs: number; reviews: number; issues: number };
   dailyActivity: Array<{ date: string; count: number }>;
+  summaryCards: Array<{
+    label: string;
+    value: string;
+  }>;
   persona: {
     title: string;
     headline: string;
@@ -17,7 +21,13 @@ interface HeroSectionProps {
   };
 }
 
-export function HeroSection({ viewer, stats, dailyActivity, persona }: HeroSectionProps) {
+export function HeroSection({
+  viewer,
+  stats,
+  dailyActivity,
+  summaryCards,
+  persona,
+}: HeroSectionProps) {
   return (
     <motion.section
       initial={{ opacity: 0 }}
@@ -28,6 +38,7 @@ export function HeroSection({ viewer, stats, dailyActivity, persona }: HeroSecti
       <NeuralHeroSection
         dailyActivity={dailyActivity}
         stats={stats}
+        summaryCards={summaryCards}
         persona={persona}
         viewer={viewer}
       />

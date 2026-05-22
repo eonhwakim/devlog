@@ -2,17 +2,26 @@
 
 import { motion } from "framer-motion";
 import { useMemo } from "react";
-import { GrassGarden } from "./GrassGarden";
-import { NeuralHero } from "./NeuralHero";
+import { NeuralGrass } from "./NeuralGrass";
 
 interface NeuralHeroProps {
   dailyActivity: Array<{ date: string; count: number }>;
   stats: { commits: number; prs: number; reviews: number; issues: number };
+  summaryCards: Array<{
+    label: string;
+    value: string;
+  }>;
   persona: { title: string; headline: string };
   viewer: { login: string; name: string | null };
 }
 
-export function NeuralHeroSection({ dailyActivity, stats, persona, viewer }: NeuralHeroProps) {
+export function NeuralHeroSection({
+  dailyActivity,
+  stats,
+  summaryCards,
+  persona,
+  viewer,
+}: NeuralHeroProps) {
   const activeDays = useMemo(
     () => dailyActivity.filter((day) => day.count > 0).length,
     [dailyActivity],
@@ -40,7 +49,10 @@ export function NeuralHeroSection({ dailyActivity, stats, persona, viewer }: Neu
           </h2>
         </motion.div>
       </div>
-
+      <div className="flex w-full items-center justify-center">
+        <NeuralGrass dailyActivity={dailyActivity} summaryCards={summaryCards} />
+      </div>
+      {/*  
       <div className="flex w-full items-center justify-center">
         <NeuralHero dailyActivity={dailyActivity} stats={stats} persona={persona} viewer={viewer} />
       </div>
@@ -49,7 +61,7 @@ export function NeuralHeroSection({ dailyActivity, stats, persona, viewer }: Neu
         <div className="pointer-events-auto">
           <GrassGarden dailyActivity={dailyActivity} />
         </div>
-      </div>
+      </div> */}
     </section>
   );
 }
