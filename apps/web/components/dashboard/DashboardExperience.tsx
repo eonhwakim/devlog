@@ -3,15 +3,16 @@
 import { motion } from "framer-motion";
 import { ActivitySection } from "./ActivitySection";
 import { DashboardFooter } from "./DashboardFooter";
-import { HeroSection } from "./HeroSection";
 import { useDashboardPageState } from "./DashboardPageState";
 import { ExploreSection } from "./ExploreSection";
 import { GitHubPulseSection } from "./GitHubPulseSection";
+import { HeroSection } from "./HeroSection";
 import { WrappedExperience } from "./WrappedExperience";
 
 interface DashboardExperienceProps {
   viewer: { login: string; name: string | null };
   periodLabel: string;
+  totalContributions: number;
   stats: { commits: number; prs: number; reviews: number; issues: number };
   dailyActivity: Array<{ date: string; count: number }>;
   recentPRs: Array<{
@@ -23,6 +24,11 @@ interface DashboardExperienceProps {
     mergedAt: string | null;
   }>;
   topRepos: Array<{ name: string; language: string | null; commits: number }>;
+  summaryCards: Array<{
+    label: string;
+    value: string;
+  }>;
+  insightLines: string[];
   persona: {
     title: string;
     headline: string;
@@ -44,10 +50,13 @@ const containerVariants = {
 export function DashboardExperience({
   viewer,
   periodLabel,
+  totalContributions,
   stats,
   dailyActivity,
   recentPRs,
   topRepos,
+  summaryCards,
+  insightLines,
   persona,
 }: DashboardExperienceProps) {
   const { mode, showDashboard } = useDashboardPageState();
@@ -68,12 +77,22 @@ export function DashboardExperience({
 
   return (
     <>
-      <HeroSection viewer={viewer} dailyActivity={dailyActivity} stats={stats} persona={persona} />
+      <HeroSection
+        viewer={viewer}
+        dailyActivity={dailyActivity}
+        stats={stats}
+        summaryCards={summaryCards}
+        persona={persona}
+      />
 
       <main className="relative z-10 mx-auto mt-12 max-w-6xl px-6 pb-24 md:mt-24">
         <motion.div variants={containerVariants} initial="hidden" animate="visible">
-          <DashboardFooter stats={stats} periodLabel={periodLabel} />
-          <ActivitySection topRepos={topRepos} dailyActivity={dailyActivity} />
+          <DashboardFooter totalContributions={totalContributions} periodLabel={periodLabel} />
+          <ActivitySection
+            topRepos={topRepos}
+            dailyActivity={dailyActivity}
+            insightLines={insightLines}
+          />
           <GitHubPulseSection topRepos={topRepos} recentPRs={recentPRs} />
           <ExploreSection />
         </motion.div>
