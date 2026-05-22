@@ -14,8 +14,8 @@ function buildTechStack(
 ) {
   const map = new Map<string, number>();
   topRepos.forEach((r) => {
-    const l = r.language ?? "Unknown";
-    map.set(l, (map.get(l) ?? 0) + r.commits);
+    if (!r.language) return;
+    map.set(r.language, (map.get(r.language) ?? 0) + r.commits);
   });
   const result = [...map.entries()]
     .sort((a, b) => b[1] - a[1])
@@ -43,7 +43,13 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" as const } },
 };
 
-function InsightPanel({ commitsByHour }: { commitsByHour: number[] | null }) {
+function InsightPanel({
+  commitsByHour,
+  insightLines,
+}: {
+  commitsByHour: number[] | null;
+  insightLines: string[];
+}) {
   const peakHour = commitsByHour ? commitsByHour.indexOf(Math.max(...commitsByHour)) : null;
   const PeakIcon =
     peakHour === null
@@ -143,6 +149,17 @@ function InsightPanel({ commitsByHour }: { commitsByHour: number[] | null }) {
                     </p>
                   </div>
                 </div>
+
+                <div className="grid gap-2">
+                  {insightLines.map((line) => (
+                    <div
+                      key={line}
+                      className="rounded-xl border border-white/8 bg-black/20 px-3 py-3 text-[11px] leading-5 text-[var(--dashboard-soft)]"
+                    >
+                      {line}
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="flex h-24 items-center justify-center gap-2 text-[11px] text-[var(--dashboard-muted)]">
@@ -160,9 +177,10 @@ function InsightPanel({ commitsByHour }: { commitsByHour: number[] | null }) {
 interface ActivitySectionProps {
   topRepos: Array<{ name: string; language: string | null; commits: number }>;
   dailyActivity: Array<{ date: string; count: number }>;
+  insightLines: string[];
 }
 
-export function ActivitySection({ topRepos, dailyActivity }: ActivitySectionProps) {
+export function ActivitySection({ topRepos, dailyActivity, insightLines }: ActivitySectionProps) {
   const [commitsByHour, setCommitsByHour] = useState<number[] | null>(null);
 
   useEffect(() => {
@@ -174,6 +192,8 @@ export function ActivitySection({ topRepos, dailyActivity }: ActivitySectionProp
 
   const techStack = useMemo(() => buildTechStack(topRepos), [topRepos]);
   const stackTotal = techStack.reduce((s, i) => s + i.value, 0);
+  const dominantTech = techStack[0] ?? null;
+  const secondaryTech = techStack[1] ?? null;
 
   const focusTimeline = useMemo(() => {
     const monthlyMap = new Map<string, number>();
@@ -215,12 +235,42 @@ export function ActivitySection({ topRepos, dailyActivity }: ActivitySectionProp
     };
   }, [dailyActivity]);
 
+  const techNarrative = useMemo(() => {
+    if (!dominantTech) {
+      return "이번 기간의 기술 사용 흐름은 특정 언어 한 곳으로 강하게 쏠리기보다는 분산된 편이라, 현재는 탐색형 패턴으로 읽는 것이 더 자연스럽습니다.";
+    }
+
+    const dominantPct = stackTotal > 0 ? Math.round((dominantTech.value / stackTotal) * 100) : 0;
+    const secondarySentence = secondaryTech
+      ? `${secondaryTech.name}도 뒤를 받치고 있어 한 가지 기술에만 고정되기보다 보조 축이 함께 형성된 상태입니다.`
+      : "상위 언어 집중도가 높아 현재 작업의 주력 기술축이 비교적 선명하게 드러납니다.";
+
+    return `${dominantTech.name}가 전체 활동의 약 ${dominantPct}%를 차지해 이번 기간의 중심 기술로 보입니다. ${secondarySentence} 저장소 대표 언어 기준 추정치이긴 하지만, 지금 어떤 기술 위에서 가장 많은 문제를 풀고 있는지는 충분히 읽히는 구성입니다.`;
+  }, [dominantTech, secondaryTech, stackTotal]);
+
+  const focusNarrative = useMemo(() => {
+    if (!focusTimeline.peakMonth || !focusTimeline.latestMonth) {
+      return "월별 활동 데이터가 충분하지 않아 집중 구간을 뚜렷하게 읽어내긴 어렵지만, 활동이 더 쌓이면 어느 시점에 에너지가 몰렸는지가 이 타임라인에서 선명하게 보이게 됩니다.";
+    }
+
+    const trendText =
+      focusTimeline.trendDelta === null
+        ? "전월 비교 기준은 아직 충분하지 않습니다."
+        : focusTimeline.trendDelta > 0
+          ? `최근 한 달은 직전 달보다 ${focusTimeline.trendDelta.toLocaleString()}회 더 활발해, 모멘텀이 다시 올라오는 구간으로 해석할 수 있습니다.`
+          : focusTimeline.trendDelta < 0
+            ? `최근 한 달은 직전 달보다 ${Math.abs(focusTimeline.trendDelta).toLocaleString()}회 낮아져, 강한 피크 이후 숨 고르기 흐름에 가깝습니다.`
+            : "최근 한 달은 직전 달과 거의 같은 리듬을 유지했습니다.";
+
+    return `${focusTimeline.peakMonth.longLabel}이 가장 강한 집중 구간으로 나타났고, ${focusTimeline.latestMonth.longLabel} 수치를 함께 보면 이 흐름이 일시적 스퍼트였는지 현재도 이어지고 있는지 읽을 수 있습니다. ${trendText}`;
+  }, [focusTimeline]);
+
   return (
     <motion.section
       variants={itemVariants}
       className="grid grid-cols-1 gap-6 pb-16 lg:grid-cols-12"
     >
-      <InsightPanel commitsByHour={commitsByHour} />
+      <InsightPanel commitsByHour={commitsByHour} insightLines={insightLines} />
 
       {/* RIGHT: Stacked Cards */}
       <div className="flex flex-col gap-6 lg:col-span-6">
@@ -277,6 +327,10 @@ export function ActivitySection({ topRepos, dailyActivity }: ActivitySectionProp
               ))}
             </div>
           </div>
+
+          <div className="relative z-10 mt-5 rounded-[1.35rem] border border-white/8 bg-black/18 px-4 py-4">
+            <p className="text-[12px] leading-6 text-[var(--dashboard-soft)]">{techNarrative}</p>
+          </div>
         </div>
 
         {/* Focus Timeline (Bottom Right) */}
@@ -303,7 +357,11 @@ export function ActivitySection({ topRepos, dailyActivity }: ActivitySectionProp
                   const isPeak = focusTimeline.peakMonth?.month === item.month;
                   const heightPct = Math.max(8, (item.count / focusTimeline.maxCount) * 100);
                   return (
-                    <div key={item.month} className="flex flex-1 items-end" style={{ height: "100%" }}>
+                    <div
+                      key={item.month}
+                      className="flex flex-1 items-end"
+                      style={{ height: "100%" }}
+                    >
                       <div
                         style={{ height: `${heightPct}%` }}
                         className={cn(
@@ -385,6 +443,10 @@ export function ActivitySection({ topRepos, dailyActivity }: ActivitySectionProp
               월별 활동 데이터를 아직 만들 수 없어요.
             </div>
           ) : null}
+
+          <div className="relative z-10 mt-4 rounded-[1.35rem] border border-white/8 bg-black/18 px-4 py-4">
+            <p className="text-[12px] leading-6 text-[var(--dashboard-soft)]">{focusNarrative}</p>
+          </div>
         </div>
       </div>
     </motion.section>
