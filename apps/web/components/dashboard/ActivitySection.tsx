@@ -16,7 +16,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 function cn(...v: Array<string | false | null | undefined>) {
   return v.filter(Boolean).join(" ");
@@ -50,6 +61,14 @@ const STACK_COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
+
+const FOCUS_CHART_TOOLTIP = {
+  borderRadius: 12,
+  border: "1px solid rgba(255,255,255,0.1)",
+  background: "rgba(8,12,24,0.95)",
+  color: "#fff",
+  fontSize: 12,
+};
 
 type TrendChange = { lang: string; type: "new" | "gone" | "up" | "down"; percent?: number };
 
@@ -273,8 +292,16 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
     const trendDelta =
       latestMonth && previousMonth ? latestMonth.count - previousMonth.count : null;
 
+    const chartPoints = recentMonths.map((item) => ({
+      monthKey: item.month,
+      label: item.shortLabel,
+      count: item.count,
+      longLabel: item.longLabel,
+    }));
+
     return {
       recentMonths,
+      chartPoints,
       maxCount,
       peakMonth,
       latestMonth,
@@ -437,42 +464,84 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
             </p>
           </div>
 
-          <div className="relative z-10 rounded-[2rem] border border-white/5 bg-black/20 p-5">
-            <div className="flex flex-col gap-2">
-              <div className="flex h-36 items-end gap-2">
-                {focusTimeline.recentMonths.map((item) => {
-                  const isPeak = focusTimeline.peakMonth?.month === item.month;
-                  const heightPct = Math.max(8, (item.count / focusTimeline.maxCount) * 100);
-                  return (
-                    <div
-                      key={item.month}
-                      className="flex flex-1 items-end"
-                      style={{ height: "100%" }}
-                    >
-                      <div
-                        style={{ height: `${heightPct}%` }}
-                        className={cn(
-                          "w-full rounded-t-2xl border border-white/8 transition-all duration-300",
-                          isPeak
-                            ? "bg-[linear-gradient(180deg,var(--dashboard-accent),rgba(34,211,238,0.25))]"
-                            : "bg-[linear-gradient(180deg,rgba(255,255,255,0.2),rgba(255,255,255,0.06))]",
-                        )}
-                      />
-                    </div>
-                  );
-                })}
+          <div className="relative z-10 rounded-[2rem] border border-white/5 bg-black/20 p-4 pt-5">
+            {focusTimeline.chartPoints.length === 0 ? (
+              <div className="flex h-44 items-center justify-center text-sm text-[var(--dashboard-muted)]">
+                월별 활동 데이터를 아직 만들 수 없어요.
               </div>
-              <div className="flex gap-2">
-                {focusTimeline.recentMonths.map((item) => (
-                  <div key={item.month} className="flex flex-1 flex-col items-center text-center">
-                    <p className="text-xs font-semibold text-white">{item.shortLabel}</p>
-                    <p className="text-[10px] text-[var(--dashboard-muted)]">
-                      {item.count.toLocaleString()}
-                    </p>
-                  </div>
-                ))}
+            ) : (
+              <div className="h-44 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={focusTimeline.chartPoints}
+                    margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
+                  >
+                    <defs>
+                      <linearGradient id="focusTimelineArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--dashboard-accent)" stopOpacity={0.32} />
+                        <stop offset="100%" stopColor="var(--dashboard-accent)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="rgba(255,255,255,0.06)"
+                      vertical={false}
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fill: "var(--dashboard-soft)", fontSize: 11 }}
+                      axisLine={false}
+                      tickLine={false}
+                      dy={8}
+                    />
+                    <YAxis
+                      tick={{ fill: "var(--dashboard-muted)", fontSize: 10 }}
+                      allowDecimals={false}
+                      axisLine={false}
+                      tickLine={false}
+                      width={32}
+                    />
+                    <Tooltip
+                      contentStyle={FOCUS_CHART_TOOLTIP}
+                      cursor={{ stroke: "rgba(255,255,255,0.15)", strokeWidth: 1 }}
+                      formatter={(value) => [`${Number(value ?? 0).toLocaleString()}회`, "기여"]}
+                      labelFormatter={(_, payload) => {
+                        const row = payload?.[0]?.payload as { longLabel?: string } | undefined;
+                        return row?.longLabel ?? "";
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="count"
+                      stroke="var(--dashboard-accent)"
+                      strokeWidth={2.5}
+                      fill="url(#focusTimelineArea)"
+                      activeDot={{
+                        r: 6,
+                        fill: "var(--dashboard-accent)",
+                        stroke: "#fff",
+                        strokeWidth: 2,
+                      }}
+                      dot={({ cx, cy, payload }) => {
+                        if (cx == null || cy == null) return null;
+                        const point = payload as { monthKey?: string };
+                        const isPeak = point.monthKey === focusTimeline.peakMonth?.month;
+                        return (
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r={isPeak ? 5 : 3.5}
+                            fill={isPeak ? "var(--dashboard-accent)" : "rgba(186,230,255,0.85)"}
+                            stroke={isPeak ? "#fff" : "transparent"}
+                            strokeWidth={isPeak ? 1.5 : 0}
+                          />
+                        );
+                      }}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="relative z-10 mt-4 grid gap-3 sm:grid-cols-3">
@@ -524,12 +593,6 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
               </p>
             </div>
           </div>
-
-          {focusTimeline.recentMonths.length === 0 ? (
-            <div className="relative z-10 mt-4 rounded-2xl border border-white/5 bg-black/20 p-4 text-sm text-[var(--dashboard-muted)]">
-              월별 활동 데이터를 아직 만들 수 없어요.
-            </div>
-          ) : null}
 
           <div className="relative z-10 mt-4 rounded-[1.35rem] border border-white/8 bg-black/18 px-4 py-4">
             <p className="text-[12px] leading-6 text-[var(--dashboard-soft)]">{focusNarrative}</p>
