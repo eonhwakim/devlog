@@ -1,7 +1,20 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Activity, Clock, Coffee, Moon, Sun, TrendingUp } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Activity,
+  ArrowRight,
+  Clock,
+  Coffee,
+  Minus,
+  Moon,
+  Sparkles,
+  Sun,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 
@@ -37,6 +50,32 @@ const STACK_COLORS = [
   "var(--chart-4)",
   "var(--chart-5)",
 ];
+
+type TrendChange = { lang: string; type: "new" | "gone" | "up" | "down"; percent?: number };
+
+const CHANGE_META: Record<TrendChange["type"], { label: string; color: string; Icon: LucideIcon }> =
+  {
+    new: {
+      label: "새로 시작",
+      color: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400",
+      Icon: Sparkles,
+    },
+    gone: {
+      label: "최근 없음",
+      color: "border-white/10 bg-white/5 text-[var(--dashboard-muted)]",
+      Icon: Minus,
+    },
+    up: {
+      label: "증가",
+      color: "border-blue-500/30 bg-blue-500/10 text-blue-400",
+      Icon: TrendingUp,
+    },
+    down: {
+      label: "감소",
+      color: "border-orange-500/30 bg-orange-500/10 text-orange-400",
+      Icon: TrendingDown,
+    },
+  };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -182,11 +221,19 @@ interface ActivitySectionProps {
 
 export function ActivitySection({ topRepos, dailyActivity, insightLines }: ActivitySectionProps) {
   const [commitsByHour, setCommitsByHour] = useState<number[] | null>(null);
+  const [trendsChanges, setTrendsChanges] = useState<TrendChange[]>([]);
 
   useEffect(() => {
     fetch("/api/github/personal")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => d?.commitsByHour && setCommitsByHour(d.commitsByHour))
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/github/trends?months=6")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.changes && setTrendsChanges(d.changes))
       .catch(() => {});
   }, []);
 
@@ -330,6 +377,46 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
 
           <div className="relative z-10 mt-5 rounded-[1.35rem] border border-white/8 bg-black/18 px-4 py-4">
             <p className="text-[12px] leading-6 text-[var(--dashboard-soft)]">{techNarrative}</p>
+          </div>
+
+          {/* 주목할 변화 */}
+          <div className="relative z-10 mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[10px] font-bold tracking-[0.22em] text-[var(--dashboard-muted)] uppercase">
+                주목할 변화
+              </p>
+              <Link
+                href="/trends"
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-[var(--dashboard-accent)]/30 bg-[var(--dashboard-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--dashboard-accent)] transition hover:border-[var(--dashboard-accent)]/50 hover:bg-[var(--dashboard-accent)]/18"
+              >
+                <ArrowRight className="h-5 w-5 text-white transition-colors group-hover:text-[var(--dashboard-accent)]" />
+              </Link>
+            </div>
+            {trendsChanges.length === 0 ? (
+              <p className="text-[11px] text-[var(--dashboard-muted)]">
+                기간 내 언어 사용 패턴이 안정적으로 유지되고 있어요.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {trendsChanges.map((c, i) => {
+                  const meta = CHANGE_META[c.type];
+                  const Icon = meta.Icon;
+                  return (
+                    <Link key={i} href="/trends">
+                      <span
+                        className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-opacity hover:opacity-70 ${meta.color}`}
+                      >
+                        <Icon className="h-3 w-3 shrink-0" aria-hidden />
+                        <span>
+                          {c.lang} · {meta.label}
+                          {c.percent ? ` ${c.percent}%` : ""}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
