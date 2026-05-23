@@ -41,17 +41,10 @@ function buildTechStack(
     if (!r.language) return;
     map.set(r.language, (map.get(r.language) ?? 0) + r.commits);
   });
-  const result = [...map.entries()]
+  return [...map.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([name, value]) => ({ name, value }));
-  return result.length > 0
-    ? result
-    : [
-        { name: "TypeScript", value: 88 },
-        { name: "JavaScript", value: 46 },
-        { name: "Python", value: 18 },
-      ];
 }
 
 const STACK_COLORS = [
@@ -310,8 +303,12 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
   }, [dailyActivity]);
 
   const techNarrative = useMemo(() => {
+    if (techStack.length === 0) {
+      return "이 기간에 언어 정보가 있는 레포 기여 데이터가 없어, 기술 스택 비중을 계산할 수 없습니다. 커밋이 쌓이면 저장소 대표 언어 기준으로 다시 집계됩니다.";
+    }
+
     if (!dominantTech) {
-      return "이번 기간의 기술 사용 흐름은 특정 언어 한 곳으로 강하게 쏠리기보다는 분산된 편이라, 현재는 탐색형 패턴으로 읽는 것이 더 자연스럽습니다.";
+      return "언어별 커밋 비중을 계산했지만 뚜렷한 중심 언어는 아직 보이지 않습니다. 여러 기술을 오가는 분산형 패턴에 가깝습니다.";
     }
 
     const dominantPct = stackTotal > 0 ? Math.round((dominantTech.value / stackTotal) * 100) : 0;
@@ -320,7 +317,7 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
       : "상위 언어 집중도가 높아 현재 작업의 주력 기술축이 비교적 선명하게 드러납니다.";
 
     return `${dominantTech.name}가 전체 활동의 약 ${dominantPct}%를 차지해 이번 기간의 중심 기술로 보입니다. ${secondarySentence} 저장소 대표 언어 기준 추정치이긴 하지만, 지금 어떤 기술 위에서 가장 많은 문제를 풀고 있는지는 충분히 읽히는 구성입니다.`;
-  }, [dominantTech, secondaryTech, stackTotal]);
+  }, [techStack.length, dominantTech, secondaryTech, stackTotal]);
 
   const focusNarrative = useMemo(() => {
     if (!focusTimeline.peakMonth || !focusTimeline.latestMonth) {
@@ -364,43 +361,49 @@ export function ActivitySection({ topRepos, dailyActivity, insightLines }: Activ
             Languages of this period
           </h4>
 
-          <div className="relative z-10 flex items-center gap-8">
-            <div className="h-32 w-32 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={techStack}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={35}
-                    outerRadius={60}
-                    stroke="transparent"
-                    paddingAngle={2}
-                  >
-                    {techStack.map((item, i) => (
-                      <Cell key={item.name} fill={STACK_COLORS[i % STACK_COLORS.length]} />
-                    ))}
-                  </Pie>
-                </PieChart>
-              </ResponsiveContainer>
+          {techStack.length === 0 ? (
+            <div className="relative z-10 flex min-h-32 items-center justify-center rounded-[1.35rem] border border-white/8 bg-black/18 px-4 py-8 text-center text-sm text-[var(--dashboard-muted)]">
+              언어 정보가 있는 레포 기여가 없어 차트를 표시할 수 없습니다.
             </div>
-            <div className="w-full flex-1 space-y-3.5">
-              {techStack.slice(0, 5).map((item, i) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3 text-sm">
-                    <span
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: STACK_COLORS[i % STACK_COLORS.length] }}
-                    />
-                    <span className="font-medium text-white">{item.name}</span>
+          ) : (
+            <div className="relative z-10 flex items-center gap-8">
+              <div className="h-32 w-32 shrink-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={techStack}
+                      dataKey="value"
+                      nameKey="name"
+                      innerRadius={35}
+                      outerRadius={60}
+                      stroke="transparent"
+                      paddingAngle={2}
+                    >
+                      {techStack.map((item, i) => (
+                        <Cell key={item.name} fill={STACK_COLORS[i % STACK_COLORS.length]} />
+                      ))}
+                    </Pie>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="w-full flex-1 space-y-3.5">
+                {techStack.map((item, i) => (
+                  <div key={item.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-sm">
+                      <span
+                        className="h-3 w-3 rounded-full"
+                        style={{ backgroundColor: STACK_COLORS[i % STACK_COLORS.length] }}
+                      />
+                      <span className="font-medium text-white">{item.name}</span>
+                    </div>
+                    <span className="text-sm font-semibold text-[var(--dashboard-muted)]">
+                      {stackTotal > 0 ? `${Math.round((item.value / stackTotal) * 100)}%` : "-"}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold text-[var(--dashboard-muted)]">
-                    {stackTotal > 0 ? `${Math.round((item.value / stackTotal) * 100)}%` : "-"}
-                  </span>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="relative z-10 mt-5 rounded-[1.35rem] border border-white/8 bg-black/18 px-4 py-4">
             <p className="text-[12px] leading-6 text-[var(--dashboard-soft)]">{techNarrative}</p>
