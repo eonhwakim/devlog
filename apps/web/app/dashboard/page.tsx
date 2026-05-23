@@ -63,8 +63,8 @@ function buildPersona(stats: {
 
   if (reviewWeight >= issueWeight && reviewWeight >= refactorWeight) {
     return {
-      title: "The Kind Reviewer",
-      headline: "팀이 지나친 디테일까지도 놓치지 않게 만드는, 신뢰도 높은 리뷰어 흐름입니다.",
+      title: "Review-Driven",
+      headline: "코드 작성보다 리뷰와 피드백에서 존재감이 더 크게 드러나는 흐름입니다.",
       aura: "mint",
       stats: [
         { label: "Clarity", value: `${Math.min(99, 52 + stats.reviews * 4)}` },
@@ -72,17 +72,17 @@ function buildPersona(stats: {
         { label: "Taste", value: `${Math.min(99, 38 + stats.prs * 3)}` },
       ],
       toastCopy:
-        "이번 주 당신의 존재감은 코드보다 대화에서 더 크게 드러났습니다. 리뷰로 팀의 판단 비용을 줄여준 타입이에요.",
+        "이번 기간에는 직접 구현한 양보다 리뷰와 의견 정리에서 더 강한 기여가 보입니다. 팀이 판단을 빠르게 내리도록 돕는 역할에 가까웠습니다.",
       roastCopy:
-        "리뷰는 훌륭했는데, 이제 본인 코드에도 그 기준을 조금 더 잔인하게 적용할 타이밍일지도 모릅니다.",
+        "리뷰의 기준은 분명한 편이라, 이제 그 밀도를 본인 작업 기록에도 그대로 남기면 더 설득력이 커질 것 같습니다.",
     };
   }
 
   if (issueWeight >= refactorWeight) {
     return {
-      title: "The Firefighter",
+      title: "Issue Resolver",
       headline:
-        "문제가 생기면 결국 호출되는 사람처럼, 이슈와 PR을 빠르게 연결하는 주간 흐름입니다.",
+        "이슈를 빠르게 받아 정리하고, 실제 작업으로 연결하는 대응형 패턴이 강하게 보입니다.",
       aura: "sunset",
       stats: [
         { label: "Speed", value: `${Math.min(99, 50 + stats.issues * 6)}` },
@@ -90,16 +90,16 @@ function buildPersona(stats: {
         { label: "Nerve", value: `${Math.min(99, 58 + stats.issues * 4)}` },
       ],
       toastCopy:
-        "매끄러운 주간은 아니었어도, 중요한 순간마다 판을 안정시킨 사람이었습니다. 팀 입장에선 꽤 든든한 패턴이에요.",
+        "중요한 이슈가 생겼을 때 빠르게 반응하고 작업을 닫는 쪽에서 강점이 보입니다. 운영이나 안정화 국면에서 특히 믿고 맡기기 쉬운 흐름입니다.",
       roastCopy:
-        "문제가 생기면 가장 먼저 움직였네요. 다만 너무 자주 소방 출동 중이라면, 어딘가에 불씨를 그냥 두고 있는 걸 수도 있습니다.",
+        "대응 속도는 강점이지만, 비슷한 유형의 일이 반복된다면 해결 자체보다 원인 정리까지 함께 가져가는 편이 더 좋습니다.",
     };
   }
 
   return {
-    title: "The Refactoring Wizard",
+    title: "System Builder",
     headline:
-      "여러 저장소와 커밋 흐름을 보면, 복잡도를 덜어내고 구조를 다듬는 쪽에 강한 개발자 패턴입니다.",
+      "작업량 자체보다 구조를 다듬고 전체 흐름을 정리하는 쪽의 강점이 더 선명하게 보입니다.",
     aura: "ocean",
     stats: [
       { label: "Flow", value: `${Math.min(99, 48 + stats.commits * 2)}` },
@@ -107,10 +107,59 @@ function buildPersona(stats: {
       { label: "Polish", value: `${Math.min(99, 44 + stats.prs * 4)}` },
     ],
     toastCopy:
-      "이번 주 기록은 많이 고친 사람보다, 더 나은 상태로 정리한 사람에 가깝습니다. 팀이 나중에 편해질 흔적이 보여요.",
+      "이번 기간의 기록은 단순히 많이 처리한 사람이라기보다, 나중에 유지보수하기 좋은 상태로 정리한 사람에 가깝습니다.",
     roastCopy:
-      "정리는 잘했는데, 너무 우아하게 다듬다 보면 정작 드라마틱한 한 방이 안 보일 수 있습니다. 가끔은 존재감도 남겨보죠.",
+      "정리와 구조화는 강점이지만, 바깥에서 보이는 성과로 연결되도록 대표 작업을 조금 더 선명하게 남기면 좋겠습니다.",
   };
+}
+
+function describeActivityDensity(activeDays: number, longestStreak: number) {
+  if (activeDays >= 220) {
+    return `현재까지 ${activeDays}일 활동했고 최장 ${longestStreak}일 연속 흐름이 있어, 짧은 스퍼트보다 꾸준히 누적하는 패턴에 가깝습니다.`;
+  }
+  if (activeDays >= 140) {
+    return `현재까지 ${activeDays}일 활동했고 최장 ${longestStreak}일 연속 구간이 보여, 특정 시점에 몰아치기보다 주기적으로 흔적을 남기는 편으로 읽힙니다.`;
+  }
+  return `현재까지 ${activeDays}일 활동했고 최장 ${longestStreak}일 연속 구간이 보여, 강한 집중 구간이 있을 때 밀도를 높이는 타입에 더 가깝습니다.`;
+}
+
+function describePrSize(averagePRSize: number) {
+  if (averagePRSize === 0) {
+    return "최근 대표 PR 데이터가 많지 않아 PR 크기 패턴은 아직 뚜렷하게 읽히지 않습니다.";
+  }
+  if (averagePRSize < 120) {
+    return `평균 PR 규모는 ${averagePRSize.toLocaleString()} lines로, 작은 단위로 자주 나누며 리뷰 친화적으로 가져가는 경향이 보입니다.`;
+  }
+  if (averagePRSize < 320) {
+    return `평균 PR 규모는 ${averagePRSize.toLocaleString()} lines로, 과하게 잘게 쪼개지도 한 번에 너무 크게 묶지도 않는 균형형 패턴에 가깝습니다.`;
+  }
+  return `평균 PR 규모는 ${averagePRSize.toLocaleString()} lines로, 한 번에 다루는 변경 범위를 비교적 크게 가져가며 맥락 단위로 정리하는 흐름이 보입니다.`;
+}
+
+function describeRepoSpread(repoCount: number, topLanguage: string | null, recentPrCount: number) {
+  if (repoCount >= 8) {
+    return `${repoCount}개 레포를 오가며 ${topLanguage ?? "여러 기술"} 중심의 작업축을 유지해, 한 영역에만 머물기보다 맥락 전환이 잦은 편으로 보입니다. PR 해석은 최근 대표 ${recentPrCount}건 기준입니다.`;
+  }
+  if (repoCount >= 4) {
+    return `${repoCount}개 레포를 다루며 ${topLanguage ?? "주요 기술축"} 중심의 작업을 이어가, 깊이와 확장을 함께 가져가는 중간 폭의 패턴으로 읽힙니다. PR 해석은 최근 대표 ${recentPrCount}건 기준입니다.`;
+  }
+  return `${repoCount}개 레포에 비교적 집중하며 ${topLanguage ?? "현재 작업축"} 위에서 맥락을 깊게 파고드는 흐름이 보입니다. PR 해석은 최근 대표 ${recentPrCount}건 기준입니다.`;
+}
+
+function describeDelivery(totalContributions: number, mergedCount: number, recentPrCount: number) {
+  if (recentPrCount === 0) {
+    return `총 ${totalContributions.toLocaleString()}회의 기여가 쌓였고, 최근 대표 PR 표본이 적어 머지 패턴은 조금 더 데이터가 모이면 선명해질 것 같습니다.`;
+  }
+
+  const mergeRate = Math.round((mergedCount / recentPrCount) * 100);
+  const deliveryTone =
+    mergeRate >= 80
+      ? "열린 작업보다 실제로 닫힌 작업 비중이 높은 편입니다."
+      : mergeRate >= 50
+        ? "탐색과 완료가 함께 섞인 균형형 흐름으로 볼 수 있습니다."
+        : "진행 중이거나 검토 중인 작업의 비중이 비교적 높은 편입니다.";
+
+  return `총 ${totalContributions.toLocaleString()}회의 기여와 최근 대표 PR ${recentPrCount}건 기준 머지율 ${mergeRate}%를 보면, ${deliveryTone}`;
 }
 
 export default async function DashboardPage() {
@@ -255,10 +304,18 @@ export default async function DashboardPage() {
       : 0;
 
   const insightLines = [
-    `${peakMonthLabel}에 가장 높은 밀도로 활동했고, 현재까지 ${activeDays}일 동안 흔적을 남겼습니다.`,
-    `평균 PR 규모는 ${averagePRSize.toLocaleString()} lines로, 작게 쪼개기보다는 맥락 있는 단위로 밀어붙이는 패턴이 보입니다.`,
-    `${contribution.totalRepositoriesWithContributedCommits}개 레포를 건드리며 ${topLanguage ?? "다양한"} 중심의 작업축을 유지했습니다. PR 해석은 최근 대표 ${recentPRs.length}건 기준입니다.`,
-    `총 ${contribution.contributionCalendar.totalContributions.toLocaleString()}회의 기여와 최근 대표 PR ${recentPRs.length}건 기준 머지율 ${recentPRs.length > 0 ? Math.round((mergedPRs.length / recentPRs.length) * 100) : 0}%는 실제로 닫힌 작업 비중을 보여줍니다.`,
+    `${peakMonthLabel}에 가장 높은 밀도로 활동했고, ${describeActivityDensity(activeDays, longestStreak)}`,
+    describePrSize(averagePRSize),
+    describeRepoSpread(
+      contribution.totalRepositoriesWithContributedCommits,
+      topLanguage,
+      recentPRs.length,
+    ),
+    describeDelivery(
+      contribution.contributionCalendar.totalContributions,
+      mergedPRs.length,
+      recentPRs.length,
+    ),
   ];
   const summaryCards = [
     { label: "총 커밋", value: contribution.totalCommitContributions.toLocaleString() },
