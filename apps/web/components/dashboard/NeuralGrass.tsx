@@ -1,15 +1,30 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import type React from "react";
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+
+interface WeeklyData {
+  stats: { commits: number; prs: number; reviews: number; issues: number };
+  topRepos: Array<{ name: string; language: string | null; commits: number }>;
+  recentPRs: Array<{
+    title: string;
+    repo: string;
+    state: string;
+    additions: number;
+    deletions: number;
+    changedFiles: number;
+    reviews: number;
+    mergedAt: string | null;
+    impactScore: number;
+  }>;
+  period: { from: string; to: string };
+}
 
 interface NeuralGrassProps {
   dailyActivity: Array<{ date: string; count: number }>;
-  summaryCards: Array<{
-    label: string;
-    value: string;
-  }>;
+  summaryCards: Array<{ label: string; value: string }>;
+  weeklyData?: WeeklyData | null;
 }
 
 const BRAIN_PATH =
@@ -18,10 +33,8 @@ const BRAIN_PATH =
 const PATH_CENTER_X = 157;
 const PATH_CENTER_Y = 154;
 
-// 데이터 양과 무관하게 항상 이 개수의 뉴런을 배치
 const NODE_COUNT = 168;
 
-// 뇌 외곽 좌표를 모듈 로드 시 한 번만 파싱
 const BRAIN_OUTLINE_POINTS: Array<{ x: number; y: number }> = (() => {
   const out: Array<{ x: number; y: number }> = [];
   const segments = BRAIN_PATH.replace(/^M/, "").split(/L/);
@@ -62,13 +75,131 @@ interface Triangle {
   c: number;
 }
 
-export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
+interface PulseCluster {
+  a: number;
+  b: number;
+  c: number;
+  points: string;
+  cx: number;
+  cy: number;
+  peakOpacity: number;
+  delay: number;
+  duration: number;
+}
+
+function edgeKey(a: number, b: number): string {
+  return a < b ? `${a}-${b}` : `${b}-${a}`;
+}
+
+function neuronVisual(n: Neuron) {
+  const inactive = n.intensity === 0;
+  return {
+    radius: inactive ? 1.0 : 1.4 + n.intensity * 2.2,
+    fill: inactive ? "rgba(160,210,255,0.65)" : "rgba(225,245,255,1)",
+    opacity: inactive ? 0.42 : 0.58 + n.intensity * 0.38,
+    glowFilter: inactive
+      ? "url(#neural-neuron-glow-soft)"
+      : n.intensity > 0.45
+        ? "url(#neural-neuron-glow-strong)"
+        : "url(#neural-neuron-glow)",
+    haloRadius: inactive ? 0 : 1.8 + n.intensity * 3.2,
+    haloOpacity: inactive ? 0 : 0.12 + n.intensity * 0.22,
+  };
+}
+
+export function NeuralGrass({ dailyActivity, summaryCards, weeklyData }: NeuralGrassProps) {
+  const [fullText, setFullText] = useState(""); // 완전히 받아온 원문
+  const [displayed, setDisplayed] = useState(""); // 타이핑 중인 텍스트
+  const [isFetched, setIsFetched] = useState(false);
+  const fetchedRef = useRef(false);
+  const rafRef = useRef<number>(0);
+  const lastTickRef = useRef(0);
+  const CHAR_INTERVAL = 30; // ms per character
+  const CLIENT_CACHE_TTL = 60 * 60 * 1000; // 1시간
+
+  // localStorage 캐시 확인 → 없으면 API 호출
+  useEffect(() => {
+    if (!weeklyData || fetchedRef.current) return;
+    fetchedRef.current = true;
+
+    // ── 1. 클라이언트 캐시 확인 ──────────────────────────────────────────
+    const cacheKey = `devlog_claude_weekly_${weeklyData.period.from}`;
+    try {
+      const raw = localStorage.getItem(cacheKey);
+      if (raw) {
+        const { text, ts } = JSON.parse(raw) as { text: string; ts: number };
+        if (text && Date.now() - ts < CLIENT_CACHE_TTL) {
+          setFullText(text);
+          setIsFetched(true);
+          return; // API 호출 없이 캐시 사용
+        }
+      }
+    } catch {}
+
+    // ── 2. 캐시 미스 → 서버에 요청 ──────────────────────────────────────
+    const ctrl = new AbortController();
+    fetch("/api/claude/weekly", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(weeklyData),
+      signal: ctrl.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) return;
+        const text = await res.text();
+        if (!text) return;
+
+        // 로컬 캐시에 저장 + 이전 주 캐시 정리
+        try {
+          for (const k of Object.keys(localStorage)) {
+            if (k.startsWith("devlog_claude_weekly_") && k !== cacheKey) {
+              localStorage.removeItem(k);
+            }
+          }
+          localStorage.setItem(cacheKey, JSON.stringify({ text, ts: Date.now() }));
+        } catch {}
+
+        setFullText(text);
+        setIsFetched(true);
+      })
+      .catch((e) => {
+        if (e.name !== "AbortError") console.error(e);
+      });
+    return () => ctrl.abort();
+  }, [weeklyData]);
+
+  // rAF 타이핑: fullText 도착 후 한 글자씩 출력
+  useEffect(() => {
+    if (!isFetched || !fullText) return;
+    let pos = 0;
+    lastTickRef.current = 0;
+
+    function tick(now: number) {
+      if (lastTickRef.current === 0) lastTickRef.current = now;
+      const elapsed = now - lastTickRef.current;
+      const steps = Math.floor(elapsed / CHAR_INTERVAL);
+      if (steps > 0) {
+        pos = Math.min(pos + steps, fullText.length);
+        setDisplayed(fullText.slice(0, pos));
+        lastTickRef.current = now;
+      }
+      if (pos < fullText.length) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [isFetched, fullText]);
+
+  const weeklyHighlight = weeklyData?.stats ?? null;
+  const reduceMotion = useReducedMotion();
+
   const neurons = useMemo<Neuron[]>(() => {
     if (BRAIN_OUTLINE_POINTS.length === 0) return [];
     const sorted = (dailyActivity ?? []).slice().sort((a, b) => a.date.localeCompare(b.date));
     const outlineCount = BRAIN_OUTLINE_POINTS.length;
 
-    // dailyActivity 를 항상 NODE_COUNT 개 시간 버킷으로 균등 분할 (데이터가 비어도 64개 노드 유지)
     const buckets = Array.from({ length: NODE_COUNT }, (_, i) => {
       if (sorted.length === 0) {
         return { startDate: "", endDate: "", count: 0 };
@@ -87,7 +218,6 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
     return buckets.map((b, i) => {
       const outlineIdx = Math.floor((i * outlineCount) / NODE_COUNT) % outlineCount;
       const op = BRAIN_OUTLINE_POINTS[outlineIdx];
-      // 5개 동심 띠를 면적 비율에 맞춰 분배 → 안쪽까지 고르게 채움
       const ringSeed = pseudo(i * 7.3 + 1);
       let ratio: number;
       if (ringSeed < 0.32) ratio = 0.98;
@@ -109,7 +239,6 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
     });
   }, [dailyActivity]);
 
-  // 가까운 이웃끼리 연결 (k-최근접)
   const synapses = useMemo<Synapse[]>(() => {
     if (neurons.length === 0) return [];
     const k = 5;
@@ -137,7 +266,6 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
     return out;
   }, [neurons]);
 
-  // 인접 정보 → 삼각형(3 노드 상호 연결) 추출
   const triangles = useMemo<Triangle[]>(() => {
     if (synapses.length === 0) return [];
     const adj = new Map<number, Set<number>>();
@@ -167,19 +295,56 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
     return out;
   }, [synapses]);
 
-  // 펄스 대상: 결정적 가중치로 상위 ~70개만 추려 산발적 표시
-  const pulsingTriangles = useMemo<Triangle[]>(() => {
+  const pulseClusters = useMemo<PulseCluster[]>(() => {
     if (triangles.length === 0) return [];
     const weighted = triangles.map((t, i) => ({ t, w: pseudo(i * 3.71 + 0.13) }));
     weighted.sort((a, b) => b.w - a.w);
-    const take = Math.min(10, weighted.length);
-    return weighted.slice(0, take).map((x) => x.t);
-  }, [triangles]);
+    const take = Math.min(18, weighted.length);
+    return weighted.slice(0, take).map(({ t }, i) => {
+      const A = neurons[t.a];
+      const B = neurons[t.b];
+      const C = neurons[t.c];
+      const intensity = (A.intensity + B.intensity + C.intensity) / 3;
+      return {
+        a: t.a,
+        b: t.b,
+        c: t.c,
+        points: `${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y}`,
+        cx: (A.x + B.x + C.x) / 3,
+        cy: (A.y + B.y + C.y) / 3,
+        peakOpacity: 0.18 + intensity * 0.28,
+        delay: pseudo(i * 11.31 + 2.7) * 9,
+        duration: 2.6 + pseudo(i * 7.93 + 0.9) * 2.6,
+      };
+    });
+  }, [triangles, neurons]);
+
+  const pulseNeuronIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const cluster of pulseClusters) {
+      ids.add(cluster.a);
+      ids.add(cluster.b);
+      ids.add(cluster.c);
+    }
+    return ids;
+  }, [pulseClusters]);
+
+  const pulseEdgeKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const cluster of pulseClusters) {
+      keys.add(edgeKey(cluster.a, cluster.b));
+      keys.add(edgeKey(cluster.b, cluster.c));
+      keys.add(edgeKey(cluster.c, cluster.a));
+    }
+    return keys;
+  }, [pulseClusters]);
 
   const globalIntensity = useMemo(() => {
     if (neurons.length === 0) return 0;
     return neurons.reduce((sum, n) => sum + n.intensity, 0) / neurons.length;
   }, [neurons]);
+
+  const breathDuration = Math.max(6, 8 - globalIntensity * 2);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ neuron: Neuron; x: number; y: number } | null>(null);
@@ -213,143 +378,172 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
     : "";
 
   return (
-    <div className="pointer-events-none flex w-full items-center justify-center">
+    <div className="pointer-events-none flex w-full flex-col items-center">
       <div ref={containerRef} className="relative flex items-center justify-center">
-        <motion.div
-          animate={{
-            y: [0, -8, 0],
-            scale: [1, 1.025 + globalIntensity * 0.03, 1],
-          }}
-          transition={{
-            duration: Math.max(5, 9 - globalIntensity * 3),
-            repeat: Number.POSITIVE_INFINITY,
-            ease: "easeInOut",
-          }}
-          className="relative h-[420px] w-[420px] mix-blend-screen md:h-[520px] md:w-[520px] lg:h-[580px] lg:w-[560px]"
+        <div
+          className={`neural-grass-brain mix-blend-screen ${reduceMotion ? "" : "neural-grass-brain--animate"}`}
+          style={{ "--neural-breath-duration": `${breathDuration}s` } as React.CSSProperties}
         >
+          <div className="neural-grass-glow" aria-hidden="true" />
+
           <svg
             viewBox="0 0 314 308"
             className="absolute inset-0 h-full w-full overflow-visible"
             fill="none"
             aria-hidden="true"
-            style={{ pointerEvents: "none" }}
           >
-            {/* 뇌 외곽 실루엣 (희미하게) */}
-            <motion.path
+            <defs>
+              <filter id="neural-neuron-glow-soft" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="1.4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="neural-neuron-glow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="2.2" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+              <filter id="neural-neuron-glow-strong" x="-100%" y="-100%" width="300%" height="300%">
+                <feGaussianBlur stdDeviation="3.4" result="blur" />
+                <feMerge>
+                  <feMergeNode in="blur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </defs>
+
+            <path
+              className={reduceMotion ? undefined : "neural-grass-outline"}
               d={BRAIN_PATH}
-              stroke="rgba(123,215,255,0.25)"
+              stroke="rgba(123,215,255,0.55)"
               strokeWidth={0.6}
               strokeLinecap="round"
               strokeLinejoin="round"
-              animate={{ opacity: [0.35, 0.7, 0.35] }}
-              transition={{ duration: 7, repeat: Number.POSITIVE_INFINITY, ease: "easeInOut" }}
-              style={{ filter: "drop-shadow(0 0 6px rgba(91,224,255,0.35))" }}
+              fill="none"
             />
 
-            {/* 산발적으로 깜빡이는 삼각형 폴리곤 */}
-            {pulsingTriangles.map((t, i) => {
-              const A = neurons[t.a];
-              const B = neurons[t.b];
-              const C = neurons[t.c];
-              if (!A || !B || !C) return null;
-              const points = `${A.x},${A.y} ${B.x},${B.y} ${C.x},${C.y}`;
-              const intensity = (A.intensity + B.intensity + C.intensity) / 3;
-              const peakOpacity = 0.18 + intensity * 0.32;
-              const delay = pseudo(i * 11.31 + 2.7) * 9;
-              const duration = 2.4 + pseudo(i * 7.93 + 0.9) * 2.8;
-              return (
-                <motion.polygon
-                  key={`tri-${i}`}
-                  points={points}
-                  fill="rgba(140,220,255,1)"
-                  style={{
-                    transformBox: "fill-box",
-                    transformOrigin: "center",
-                    filter: `drop-shadow(0 0 4px rgba(123,215,255,${0.3 + intensity * 0.4}))`,
-                  }}
-                  animate={{
-                    opacity: [0, 0, peakOpacity, 0, 0],
-                    scale: [0.55, 0.55, 1.05, 0.55, 0.55],
-                  }}
-                  transition={{
-                    duration,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                    delay,
-                    times: [0, 0.38, 0.5, 0.62, 1],
-                  }}
-                />
-              );
-            })}
+            <g stroke="rgba(170,230,255,1)" strokeWidth={0.6} strokeLinecap="round">
+              {synapses.map((s) => {
+                const key = edgeKey(s.a, s.b);
+                if (!reduceMotion && pulseEdgeKeys.has(key)) return null;
+                const na = neurons[s.a];
+                const nb = neurons[s.b];
+                const combined = (na.intensity + nb.intensity) / 2;
+                const baseOpacity = 0.15 + combined * 0.42;
+                return (
+                  <line
+                    key={`s-${key}`}
+                    x1={na.x}
+                    y1={na.y}
+                    x2={nb.x}
+                    y2={nb.y}
+                    strokeOpacity={baseOpacity}
+                  />
+                );
+              })}
+            </g>
 
-            {/* 시냅스: 가까운 뉴런들 연결 */}
-            {synapses.map((s, i) => {
-              const na = neurons[s.a];
-              const nb = neurons[s.b];
-              const combined = (na.intensity + nb.intensity) / 2;
-              const baseOpacity = 0.15 + combined * 0.4;
-              return (
-                <motion.line
-                  key={`s-${s.a}-${s.b}`}
-                  x1={na.x}
-                  y1={na.y}
-                  x2={nb.x}
-                  y2={nb.y}
-                  stroke="rgba(170,230,255,1)"
-                  strokeWidth={0.6}
-                  strokeLinecap="round"
-                  style={{
-                    filter: `drop-shadow(0 0 2.5px rgba(123,215,255,${0.45 + combined * 0.45}))`,
-                  }}
-                  animate={{
-                    opacity: [
-                      baseOpacity * 0.7,
-                      Math.min(1, baseOpacity + 0.15),
-                      baseOpacity * 0.7,
-                    ],
-                  }}
-                  transition={{
-                    duration: 2.6 + (i % 6) * 0.35,
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                    delay: (i % 11) * 0.18,
-                  }}
-                />
-              );
-            })}
+            <g>
+              {neurons.map((n) => {
+                if (!reduceMotion && pulseNeuronIds.has(n.id)) return null;
+                const vis = neuronVisual(n);
+                return (
+                  <g key={`n-${n.id}`} filter={vis.glowFilter}>
+                    {vis.haloRadius > 0 ? (
+                      <circle
+                        cx={n.x}
+                        cy={n.y}
+                        r={vis.haloRadius}
+                        fill="rgba(123,215,255,1)"
+                        opacity={vis.haloOpacity}
+                      />
+                    ) : null}
+                    <circle
+                      cx={n.x}
+                      cy={n.y}
+                      r={vis.radius}
+                      fill={vis.fill}
+                      opacity={vis.opacity}
+                    />
+                  </g>
+                );
+              })}
+            </g>
 
-            {/* 뉴런: 커밋 일자별 노드 (활동 없는 날도 동그라미 표시) */}
-            {neurons.map((n) => {
-              const inactive = n.intensity === 0;
-              const radius = inactive ? 1.0 : 1.4 + n.intensity * 2.2;
-              const peakRadius = inactive ? 1.3 : radius * (1.35 + n.intensity * 0.35);
-              const fill = inactive ? "rgba(160,210,255,0.65)" : "rgba(225,245,255,1)";
-              const glow = inactive ? 2 : 3 + n.intensity * 9;
-              return (
-                <motion.circle
-                  key={`n-${n.id}`}
-                  cx={n.x}
-                  cy={n.y}
-                  r={radius}
-                  fill={fill}
-                  style={{
-                    filter: `drop-shadow(0 0 ${glow}px rgba(123,215,255,${0.35 + n.intensity * 0.55}))`,
-                  }}
-                  animate={{
-                    r: [radius, peakRadius, radius],
-                    opacity: inactive ? [0.4, 0.7, 0.4] : [0.55, 1, 0.55],
-                  }}
-                  transition={{
-                    duration: inactive ? 5 : Math.max(2, 4 - n.intensity * 2),
-                    repeat: Number.POSITIVE_INFINITY,
-                    ease: "easeInOut",
-                    delay: (n.id % 13) * 0.2,
-                  }}
-                />
-              );
-            })}
+            {!reduceMotion &&
+              pulseClusters.map((cluster, i) => {
+                const A = neurons[cluster.a];
+                const B = neurons[cluster.b];
+                const C = neurons[cluster.c];
+                const visA = neuronVisual(A);
+                const visB = neuronVisual(B);
+                const visC = neuronVisual(C);
+                const pulseTransition = {
+                  duration: cluster.duration,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut" as const,
+                  delay: cluster.delay,
+                };
+                const polyPeak = 0.12 + cluster.peakOpacity * 0.38;
+                const linePeak = 0.22 + cluster.peakOpacity * 0.45;
+                const nodePeak = 0.42 + cluster.peakOpacity * 0.35;
+                const edges: Array<[Neuron, Neuron]> = [
+                  [A, B],
+                  [B, C],
+                  [C, A],
+                ];
+                return (
+                  <motion.g
+                    key={`pulse-${i}`}
+                    style={{
+                      transformOrigin: `${cluster.cx}px ${cluster.cy}px`,
+                      transformBox: "fill-box",
+                    }}
+                    animate={{ scale: [0.92, 1.14, 0.92] }}
+                    transition={pulseTransition}
+                  >
+                    <motion.polygon
+                      points={cluster.points}
+                      fill="rgba(140,220,255,0.75)"
+                      animate={{ opacity: [0.06, polyPeak, 0.06] }}
+                      transition={pulseTransition}
+                    />
+                    <g stroke="rgba(180,228,255,0.9)" strokeWidth={0.75} strokeLinecap="round">
+                      {edges.map(([from, to], ei) => (
+                        <motion.line
+                          key={`pe-${ei}`}
+                          x1={from.x}
+                          y1={from.y}
+                          x2={to.x}
+                          y2={to.y}
+                          animate={{ strokeOpacity: [0.1, linePeak, 0.1] }}
+                          transition={pulseTransition}
+                        />
+                      ))}
+                    </g>
+                    {[A, B, C].map((node, vi) => {
+                      const vis = [visA, visB, visC][vi];
+                      return (
+                        <motion.circle
+                          key={`pn-${vi}`}
+                          cx={node.x}
+                          cy={node.y}
+                          r={vis.radius}
+                          fill={vis.fill}
+                          filter="url(#neural-neuron-glow)"
+                          animate={{ opacity: [0.38, nodePeak, 0.38] }}
+                          transition={pulseTransition}
+                        />
+                      );
+                    })}
+                  </motion.g>
+                );
+              })}
 
-            {/* 호버용 투명 히트 영역 (시각 노드보다 크게) */}
             {neurons.map((n) => (
               <circle
                 key={`hit-${n.id}`}
@@ -363,43 +557,8 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
               />
             ))}
           </svg>
+        </div>
 
-          {/* 중앙 코어: 전체 활동량에 따라 호흡 */}
-          <motion.div
-            animate={{
-              opacity: [0.2, 0.55 + globalIntensity * 0.4, 0.2],
-              scale: [0.9, 1.1 + globalIntensity * 0.2, 0.9],
-              filter: ["blur(40px)", `blur(${52 + globalIntensity * 30}px)`, "blur(40px)"],
-            }}
-            transition={{
-              duration: Math.max(2.5, 4 - globalIntensity * 1.5),
-              repeat: Number.POSITIVE_INFINITY,
-              ease: "easeInOut",
-            }}
-            className="absolute top-1/2 left-1/2 h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[var(--dashboard-accent)]/30"
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 18 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.9, ease: "easeOut" }}
-          className="pointer-events-auto absolute inset-x-0 bottom-[-26px] flex flex-col items-center gap-4"
-        >
-          <div className="flex items-center gap-4 rounded-full border-none bg-white/5 px-6 py-3 text-[11px] font-semibold tracking-[0.24em] text-blue-100 uppercase shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
-            {summaryCards.map((card, idx) => (
-              <Fragment key={card.label}>
-                {idx > 0 && <span className="h-4 w-px bg-white/20" />}
-                <span className="text-base font-black tracking-normal text-white drop-shadow-md">
-                  {card.value}
-                </span>
-                <span className="text-white/70">{card.label}</span>
-              </Fragment>
-            ))}
-          </div>
-        </motion.div>
-
-        {/* 호버 툴팁 (mix-blend 영향 받지 않도록 외부에 배치) */}
         {hover ? (
           <div
             className="pointer-events-none absolute z-50 -translate-x-1/2 -translate-y-full rounded-xl border border-white/10 bg-[#08111b]/95 px-3 py-2 text-[11px] font-medium whitespace-nowrap text-white shadow-2xl backdrop-blur-md"
@@ -412,6 +571,85 @@ export function NeuralGrass({ dailyActivity, summaryCards }: NeuralGrassProps) {
           </div>
         ) : null}
       </div>
+
+      {/* ── chips + Claude 해석: absolute 밖으로 꺼내 일반 flow ── */}
+      <motion.div
+        initial={{ opacity: 0, y: 18 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, delay: 0.9, ease: "easeOut" }}
+        className="pointer-events-auto -mt-40 flex flex-col items-center gap-2 pb-10"
+      >
+        {weeklyHighlight ? (
+          <>
+            <p className="text-[10px] font-semibold tracking-[0.22em] text-white/35 uppercase">
+              이번 주 하이라이트
+            </p>
+            <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-black/35 px-6 py-3 shadow-[inset_0_1px_1px_rgba(255,255,255,0.08),0_8px_32px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+              {[
+                { label: "커밋", value: weeklyHighlight.commits, color: "text-cyan-300" },
+                { label: "PR", value: weeklyHighlight.prs, color: "text-blue-300" },
+                { label: "리뷰", value: weeklyHighlight.reviews, color: "text-violet-300" },
+                { label: "이슈", value: weeklyHighlight.issues, color: "text-emerald-300" },
+              ].map((item, idx) => (
+                <Fragment key={item.label}>
+                  {idx > 0 && <span className="h-5 w-px bg-white/10" />}
+                  <div className="flex flex-col items-center gap-0.5">
+                    <span
+                      className={`text-xl leading-none font-black tracking-tight ${item.color} drop-shadow-[0_0_8px_currentColor]`}
+                    >
+                      {item.value}
+                    </span>
+                    <span className="text-[10px] font-medium tracking-wider text-white/45">
+                      {item.label}
+                    </span>
+                  </div>
+                </Fragment>
+              ))}
+            </div>
+
+            {/* Claude 해석 — 타이핑 모션 */}
+            {(displayed || isFetched) && (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="mt-1 w-[540px] rounded-2xl border border-white/6 bg-black/30 px-5 py-3.5 backdrop-blur-xl"
+              >
+                {displayed ? (
+                  <p className="text-center text-[12px] leading-[1.75] text-white/50">
+                    {displayed}
+                    {displayed.length < fullText.length && (
+                      <span className="ml-0.5 inline-block h-[13px] w-[2px] animate-[blink_0.7s_step-end_infinite] rounded-full bg-violet-400 align-middle" />
+                    )}
+                  </p>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    {[70, 90, 55].map((w, i) => (
+                      <div
+                        key={i}
+                        className="h-2 animate-pulse rounded-full bg-white/8"
+                        style={{ width: `${w}%` }}
+                      />
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </>
+        ) : (
+          <div className="flex items-center gap-4 rounded-full border-none bg-white/5 px-6 py-3 text-[11px] font-semibold tracking-[0.24em] text-blue-100 uppercase shadow-[inset_0_1px_1px_rgba(255,255,255,0.15),0_8px_32px_rgba(0,0,0,0.4)] backdrop-blur-2xl">
+            {summaryCards.map((card, idx) => (
+              <Fragment key={card.label}>
+                {idx > 0 && <span className="h-4 w-px bg-white/20" />}
+                <span className="text-base font-black tracking-normal text-white drop-shadow-md">
+                  {card.value}
+                </span>
+                <span className="text-white/70">{card.label}</span>
+              </Fragment>
+            ))}
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }
