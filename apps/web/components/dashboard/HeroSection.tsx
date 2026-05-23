@@ -3,14 +3,28 @@
 import { motion } from "framer-motion";
 import { NeuralHeroSection } from "./NeuralHeroSection";
 
+interface WeeklyData {
+  stats: { commits: number; prs: number; reviews: number; issues: number };
+  topRepos: Array<{ name: string; language: string | null; commits: number }>;
+  recentPRs: Array<{
+    title: string;
+    repo: string;
+    state: string;
+    additions: number;
+    deletions: number;
+    changedFiles: number;
+    reviews: number;
+    mergedAt: string | null;
+    impactScore: number;
+  }>;
+  period: { from: string; to: string };
+}
+
 interface HeroSectionProps {
   viewer: { login: string; name: string | null };
   stats: { commits: number; prs: number; reviews: number; issues: number };
   dailyActivity: Array<{ date: string; count: number }>;
-  summaryCards: Array<{
-    label: string;
-    value: string;
-  }>;
+  summaryCards: Array<{ label: string; value: string }>;
   persona: {
     title: string;
     headline: string;
@@ -19,6 +33,7 @@ interface HeroSectionProps {
     toastCopy: string;
     roastCopy: string;
   };
+  weeklyData?: WeeklyData | null;
 }
 
 export function HeroSection({
@@ -27,6 +42,7 @@ export function HeroSection({
   dailyActivity,
   summaryCards,
   persona,
+  weeklyData,
 }: HeroSectionProps) {
   return (
     <motion.section
@@ -41,6 +57,7 @@ export function HeroSection({
         summaryCards={summaryCards}
         persona={persona}
         viewer={viewer}
+        weeklyData={weeklyData}
       />
     </motion.section>
   );

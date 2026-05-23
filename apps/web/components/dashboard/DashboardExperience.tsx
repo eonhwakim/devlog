@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useEffect, useState } from "react";
 import { ActivitySection } from "./ActivitySection";
 import { DashboardFooter } from "./DashboardFooter";
 import { useDashboardPageState } from "./DashboardPageState";
@@ -47,6 +48,23 @@ const containerVariants = {
   },
 };
 
+interface WeeklyData {
+  stats: { commits: number; prs: number; reviews: number; issues: number };
+  topRepos: Array<{ name: string; language: string | null; commits: number }>;
+  recentPRs: Array<{
+    title: string;
+    repo: string;
+    state: string;
+    additions: number;
+    deletions: number;
+    changedFiles: number;
+    reviews: number;
+    mergedAt: string | null;
+    impactScore: number;
+  }>;
+  period: { from: string; to: string };
+}
+
 export function DashboardExperience({
   viewer,
   periodLabel,
@@ -60,6 +78,16 @@ export function DashboardExperience({
   persona,
 }: DashboardExperienceProps) {
   const { mode, showDashboard } = useDashboardPageState();
+  const [weeklyData, setWeeklyData] = useState<WeeklyData | null>(null);
+
+  useEffect(() => {
+    fetch("/api/github/weekly")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.stats) setWeeklyData(data);
+      })
+      .catch(() => {});
+  }, []);
 
   if (mode === "personal") {
     return (
@@ -83,6 +111,7 @@ export function DashboardExperience({
         stats={stats}
         summaryCards={summaryCards}
         persona={persona}
+        weeklyData={weeklyData}
       />
 
       <main className="relative z-10 mx-auto mt-12 max-w-6xl px-6 pb-24 md:mt-24">
