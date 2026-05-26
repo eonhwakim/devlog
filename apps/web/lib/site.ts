@@ -9,16 +9,21 @@ function normalizeSiteUrl(value?: string | null) {
 
 export const siteConfig = {
   name: "devlog",
-  title: "devlog | GitHub Wrapped Dashboard for Developers",
+  title: "devlog | GitHub Wrapped Dashboard and Developer Analytics",
   description:
-    "devlog turns your GitHub activity into a shareable annual dashboard with contribution trends, PR highlights, language insights, and AI-assisted summaries.",
+    "devlog is a GitHub Wrapped dashboard for developers with contribution analytics, pull request highlights, language trends, review insights, and shareable annual summaries.",
   url: normalizeSiteUrl(process.env.NEXT_PUBLIC_SITE_URL ?? process.env.VERCEL_URL),
   keywords: [
     "devlog",
     "github wrapped",
     "github dashboard",
     "developer analytics",
+    "developer dashboard",
+    "github analytics",
+    "contribution analytics",
     "pull request insights",
+    "github contribution tracker",
+    "annual developer summary",
     "github contributions",
   ],
 };

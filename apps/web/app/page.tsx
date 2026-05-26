@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
-  title: siteConfig.title,
+  title: "devlog | GitHub Wrapped Dashboard for Developers",
   description: siteConfig.description,
 };
 
@@ -46,22 +46,28 @@ export default async function Home() {
         <section className="relative z-10 flex flex-1 flex-col items-center justify-center py-10 text-center">
           <div className="flex max-w-[720px] flex-col items-center">
             <p className="text-[11px] font-black tracking-[0.34em] text-cyan-200/58 uppercase">
-              Animated GitHub Intelligence
+              GitHub Wrapped For Developers
             </p>
 
             <h1 className="mt-6 text-6xl leading-[0.96] font-black tracking-[-0.04em] text-white md:text-[6.5rem]">
-              The Code <br />
+              GitHub Dashboard <br />
               <span
                 className="bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent"
                 style={{ filter: "drop-shadow(0 0 24px rgba(103,232,249,0.18))" }}
               >
-                Behind You.
+                Behind Your Year.
               </span>
             </h1>
 
-            <p className="mt-7 max-w-[500px] text-base leading-8 text-white/66 md:text-lg">
-              당신의 GitHub 기여를 살아 숨 쉬는 뉴럴 네트워크로 만나보세요. <br />
-              1년간의 개발 여정을 새로운 시각으로 분석합니다.
+            <p className="mt-7 max-w-[640px] text-base leading-8 text-white/66 md:text-lg">
+              devlog는 개발자를 위한 GitHub Wrapped 대시보드입니다. <br />
+              GitHub contributions, pull requests, review activity, language trends를 한곳에서
+              분석해 나만의 annual developer summary로 보여줍니다.
+            </p>
+
+            <p className="mt-4 max-w-[680px] text-sm leading-7 text-white/45 md:text-base">
+              개인 GitHub dashboard, contribution analytics, PR highlights, AI 요약 리포트를 통해
+              지난 1년의 개발 흐름을 빠르게 돌아볼 수 있습니다.
             </p>
 
             <form
@@ -88,10 +94,11 @@ export default async function Home() {
                 <p className="text-[10px] font-black tracking-[0.2em] text-cyan-400 uppercase">
                   01 / 나만의 대시보드
                 </p>
-                <p className="mt-2 text-lg font-bold text-white">12개월 활동 한눈에</p>
+                <p className="mt-2 text-lg font-bold text-white">GitHub contribution dashboard</p>
                 <p className="mt-1 text-sm leading-relaxed text-cyan-100/60">
-                  365일 커밋이 뉴런처럼 발화하는 Neural Map, 시간대별 골든 타임, 언어 분포, AI 협업
-                  스코어까지. 내 GitHub가 어떻게 살아있었는지 보여줍니다.
+                  365일 활동을 기준으로 contribution heatmap, 시간대별 활동 패턴, 언어 분포, AI 협업
+                  스코어까지 분석합니다. 내 GitHub activity를 한눈에 보여주는 developer
+                  dashboard입니다.
                 </p>
                 <ul className="mt-3 space-y-1">
                   {[
@@ -115,10 +122,11 @@ export default async function Home() {
                 <p className="text-[10px] font-black tracking-[0.2em] text-white/50 uppercase">
                   02 / 퍼스널 페이지
                 </p>
-                <p className="mt-2 text-lg font-bold text-white">나만의 GitHub Wrapped</p>
+                <p className="mt-2 text-lg font-bold text-white">Shareable GitHub Wrapped</p>
                 <p className="mt-1 text-sm leading-relaxed text-white/50">
-                  5개 씬을 스크롤하며 펼쳐지는 몰입형 경험. Epic PR 스토리부터 생체리듬 분석, 코드
-                  소울메이트까지 — 뉴런이 반응하는 인터랙티브 공간입니다.
+                  5개 씬을 스크롤하며 올해의 Epic PR, 생체리듬, 협업 패턴을 보여주는 shareable
+                  annual developer summary입니다. 개인 포트폴리오처럼 활용할 수 있는 GitHub Wrapped
+                  경험을 제공합니다.
                 </p>
                 <ul className="mt-3 space-y-1">
                   {[
