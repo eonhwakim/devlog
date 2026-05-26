@@ -50,12 +50,12 @@ export default async function Home() {
             </p>
 
             <h1 className="mt-6 text-6xl leading-[0.96] font-black tracking-[-0.04em] text-white md:text-[6.5rem]">
-              GitHub Dashboard <br />
+              The Code <br />
               <span
                 className="bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent"
                 style={{ filter: "drop-shadow(0 0 24px rgba(103,232,249,0.18))" }}
               >
-                Behind Your Year.
+                Behind You.
               </span>
             </h1>
 
