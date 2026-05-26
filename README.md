@@ -4,6 +4,10 @@
 
 내가 이번 주 뭘 했는지, 1년 동안 어떻게 성장했는지 — Claude가 읽고 사람 말로 정리해준다.
 
+## Live Demo
+
+https://devlog-azure.vercel.app/
+
 ## 주요 기능
 
 - **주간 요약** — 커밋, PR, 리뷰 활동을 자연어로 정리
@@ -18,7 +22,7 @@ devlog/
 ├── packages/
 │   └── mcp-server/   # Claude Desktop MCP 서버 (npm 배포)
 └── apps/
-    └── web/          # Next.js 웹 대시보드 (예정)
+    └── web/          # Next.js 웹 대시보드
 ```
 
 ## 빠른 시작
@@ -70,7 +74,7 @@ pnpm dev
 - **MCP 서버**: TypeScript, `@modelcontextprotocol/sdk`, `@octokit/graphql`
 - **GitHub API**: GraphQL v4 (필요한 필드만 정확히 요청)
 - **Data Compactor**: diff 원문 제거, 토큰 90% 절감
-- **웹 대시보드** (예정): Next.js 15, NextAuth.js, Vercel Postgres
+- **웹 대시보드**: Next.js 15, NextAuth.js, Vercel Postgres
 
 ## 아키텍처 원칙
 
