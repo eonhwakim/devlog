@@ -1,18 +1,18 @@
-import { auth } from '@/auth'
-import Anthropic from '@anthropic-ai/sdk'
-import { NextRequest } from 'next/server'
+import { auth } from "@/auth";
+import Anthropic from "@anthropic-ai/sdk";
+import { NextRequest } from "next/server";
 
-export const runtime = 'nodejs'
+export const runtime = "nodejs";
 
-const client = new Anthropic()
+const client = new Anthropic();
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
+  const session = await auth();
   if (!session) {
-    return new Response(JSON.stringify({ error: '로그인이 필요합니다' }), { status: 401 })
+    return new Response(JSON.stringify({ error: "로그인이 필요합니다" }), { status: 401 });
   }
 
-  const annualData = await req.json()
+  const annualData = await req.json();
 
   const systemPrompt = `당신은 시니어 개발자의 커리어 어드바이저입니다.
 GitHub 연간 활동 데이터를 분석해 연봉협상에서 실제로 쓸 수 있는 성과 리포트를 작성합니다.
@@ -24,7 +24,7 @@ GitHub 연간 활동 데이터를 분석해 연봉협상에서 실제로 쓸 수
 - 보고서는 짧은 소개문이 아니라, MBTI/직무진단 리포트처럼 읽히는 상세 분석 문서여야 합니다.
 - 각 섹션마다 "사실", "해석", "비즈니스/조직적 의미"가 모두 들어가야 합니다.
 - 데이터로 뒷받침되지 않는 과장 표현은 금지합니다.
-- 문장은 짧게 끊되, 내용은 충분히 깊고 길게 작성하세요.`
+- 문장은 짧게 끊되, 내용은 충분히 깊고 길게 작성하세요.`;
 
   const userPrompt = `아래 GitHub 연간 활동 데이터를 분석해 연봉협상용 성과 리포트를 작성해주세요.
 
@@ -86,57 +86,55 @@ ${JSON.stringify(annualData, null, 2)}
 
 ### 9. 최종 평가
 - 이 개발자를 한 줄로 정의
-- 연봉협상장에서 어떤 포지셔닝으로 가져가면 좋은지 4~6문장으로 정리`
+- 연봉협상장에서 어떤 포지셔닝으로 가져가면 좋은지 4~6문장으로 정리`;
 
   if (!process.env.ANTHROPIC_API_KEY) {
-    return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY가 설정되지 않았습니다' }), {
+    return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY가 설정되지 않았습니다" }), {
       status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
+      headers: { "Content-Type": "application/json" },
+    });
   }
 
   try {
     const stream = await client.messages.create({
-      model: 'claude-sonnet-4-6',
+      model: "claude-sonnet-4-6",
       max_tokens: 4096,
       system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
+      cache_control: { type: "ephemeral" }, // 5분간 캐시
+      messages: [{ role: "user", content: userPrompt }],
       stream: true,
-    })
+    });
 
-    const encoder = new TextEncoder()
+    const encoder = new TextEncoder();
 
     const readable = new ReadableStream({
       async start(controller) {
         try {
           for await (const event of stream) {
-            if (
-              event.type === 'content_block_delta' &&
-              event.delta.type === 'text_delta'
-            ) {
-              controller.enqueue(encoder.encode(event.delta.text))
+            if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+              controller.enqueue(encoder.encode(event.delta.text));
             }
           }
         } catch (e) {
-          controller.error(e)
+          controller.error(e);
         } finally {
-          controller.close()
+          controller.close();
         }
       },
-    })
+    });
 
     return new Response(readable, {
       headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Transfer-Encoding': 'chunked',
-        'X-Content-Type-Options': 'nosniff',
+        "Content-Type": "text/plain; charset=utf-8",
+        "Transfer-Encoding": "chunked",
+        "X-Content-Type-Options": "nosniff",
       },
-    })
+    });
   } catch (e: any) {
-    console.error('[claude/analyze error]', e)
-    return new Response(
-      JSON.stringify({ error: e.message ?? 'Claude API 오류' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    )
+    console.error("[claude/analyze error]", e);
+    return new Response(JSON.stringify({ error: e.message ?? "Claude API 오류" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" },
+    });
   }
 }
