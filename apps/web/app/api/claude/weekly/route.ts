@@ -26,7 +26,8 @@ export async function POST(req: NextRequest) {
   const { stats, topRepos, recentPRs, period } = await req.json();
 
   // ── 서버 캐시 확인 ─────────────────────────────────────────────────────
-  const cacheKey = `${period?.from}_${period?.to}`;
+  const userId = session.user?.email ?? session.user?.name ?? "unknown";
+  const cacheKey = `${userId}_${period?.from}_${period?.to}`;
   const cached = serverCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < SERVER_CACHE_TTL) {
     return new Response(cached.text, {
