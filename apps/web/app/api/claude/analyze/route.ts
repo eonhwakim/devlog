@@ -99,8 +99,7 @@ ${JSON.stringify(annualData, null, 2)}
     const stream = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 4096,
-      system: systemPrompt,
-      cache_control: { type: "ephemeral" }, // 5분간 캐시
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
       messages: [{ role: "user", content: userPrompt }],
       stream: true,
     });
